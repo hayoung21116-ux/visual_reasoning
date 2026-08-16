@@ -4,8 +4,8 @@
 > 0단계 파일: `논문 search (0단계).md`
 
 **표기 규칙**
-- 수치·설정은 **원문 PDF 대조 완료** 기준으로 적습니다.
-- `❓`는 본문이 아닌 **Figure(이미지)에만 있어 수치를 못 읽은 것** — 필요하면 PDF 그림을 직접 볼 것.
+- 수치·설정은 **원문 PDF 대조 완료** 기준으로 적습니다. Figure는 페이지를 이미지로 렌더링해 직접 판독했습니다.
+- 그래프에서 눈으로 읽은 값은 `~`로 표기합니다 (본문에 수치가 없는 것들).
 - 기술 용어는 영어 원어 그대로 씁니다.
 
 **수록 현황**
@@ -38,7 +38,7 @@
 
 ## 0. 한 눈에
 
-- **진단:** SOTA MLLM이 rotation/flip에 취약. 단순 변형만으로 성능이 **최대 80%까지** 떨어짐.
+- **진단:** SOTA MLLM이 rotation/flip에 취약. 어떤 변형이 걸렸는지 맞히는 5지선다에서 **최고가 GPT-5의 50.5%**(random 20%, 사람 100%), 다운스트림 성능은 단순 변형만으로 **최대 80%까지** 하락.
 - **처방:** tool registry를 고정하지 말고 **코드 자체를 universal tool interface**로 삼는다.
 - **학습:** SFT(약 5K, GPT-5로 생성) → RL(약 40K, **GRPO** + dense multi-component reward).
 - **평가:** OCRBench·ChartQAPro에 5가지 변형을 걸어 augment + 신규 **MVToolBench**.
@@ -62,10 +62,29 @@ tool이 **정말로 필요한** 상황을 만들기 위해 저자들이 주목�
 
 - 여러 도메인의 이미지 **200장**
 - 5가지 변형 중 하나를 uniform하게 적용
-- **어떤 변형이 걸렸는지 맞히는 5-way 객관식**
-- 결과: GPT-5, Gemini2.5-Pro조차 저조 / **사람은 100%**
+- **어떤 변형이 걸렸는지 맞히는 5-way 객관식** (따라서 random guess = 20%)
 
-`❓` Figure 1의 모델별 정확도 수치는 그림에만 있어 미확인.
+**Figure 1 판독 결과:**
+
+| 모델 | 정확도 |
+|---|---|
+| **Human** | **100%** |
+| GPT-5 | **50.5%** |
+| GPT-4o | 43.5% |
+| Qwen3-VL-235B-Thinking | 36.5% |
+| Gemini2.5-Pro | **33.5%** |
+| Qwen2.5-VL-72B | 32.0% |
+| InternVL3.5-241B | 29.0% |
+| *(Random Guess)* | *20%* |
+
+**이 표에서 읽어야 할 것:**
+- **최고 성능이 GPT-5의 50.5%** — random guess의 2.5배에 불과합니다. 사람이 100%를 "쉽게" 얻는 과제에서요.
+- **Gemini2.5-Pro가 33.5%로 GPT-4o(43.5%)보다 낮습니다.** 그런데 Table 1의 다운스트림 성능에서는 Gemini2.5-Pro가 압도적 1위(OCRBench avg 62.6 vs GPT-4o 52.7)입니다. **즉 "변형을 명시적으로 식별하는 능력"과 "변형된 이미지에서 task를 푸는 능력"이 서로 어긋납니다.**
+- InternVL3.5-241B는 29.0%로 거의 random 수준인데, Table 1에서도 가장 취약합니다(avg 45.9, Rot180에서 32.4).
+
+> **우리 과제에 직접 쓸 수 있는 논거:** 이 diagnostic은 **"본 모델은 자기가 어떤 변형을 당했는지 모른다"**를 정량화한 것입니다. B-3(DeepEyes)가 주장하는 "본 모델이 스스로 하게 하면 된다"에 대한 반박 근거가 여기 있습니다 — **판단 능력 자체가 random guess 근처인데 RL로 무엇을 emerge시킬 것인가.** 0단계에서 세운 반박 논거("canonical prior가 본 모델 안에 없다")를 뒷받침하는 숫자입니다.
+>
+> 다만 Gemini의 역전 현상은 **주의해서 써야 합니다.** "식별 못 함 → task 실패"라는 단선적 인과가 아니라는 반례이기 때문입니다. 오히려 우리 쪽에 유리하게 해석할 수도 있습니다 — 명시적 식별과 무관하게 성능이 나오는 경로가 있다면, 앞단에서 아예 정방향으로 되돌려 주는 것이 더 확실한 처방이라는 논리.
 
 > **우리 과제와의 연결:** RotBench가 "회전을 *맞히지* 못한다"를 보였다면, 이 논문은 거기에 더해 **"회전되면 다운스트림 task 성능이 무너진다"(Table 1)**를 보입니다. Intro에서 "인식 실패 → 성능 실패"로 이어 쓰기 좋습니다.
 >
@@ -337,6 +356,43 @@ ChartQAPro에서 CodeVision-7B는 **31.7**로, base(24.4) 대비 +7.3에 그치�
 
 Source 컬럼: 86.4→87.2 (7B), 82.4→83.5 (8B), 86.6→87.8 (32B). ChartQAPro도 37.3→39.1, 47.2→50.3, 52.3→57.4. **소폭 상승**입니다. Inappropriate Tool Use Penalty가 작동한 것으로 보입니다. — "tool을 붙이면 정상 이미지가 망가진다"는 반론은 이 논문 상대로는 안 통합니다.
 
+### 학습 곡선 (Figure 5, 7, 17)
+
+**Figure 5 — RL 학습 곡선 (700 step)**
+
+| 성분 | 시작 → 끝 |
+|---|---|
+| Accuracy | ~0.28 → **~0.72** |
+| Strategy | ~0.22 → **~0.62** |
+| Penalty | ~0.09 → step 200 이후 **~0에 수렴** |
+
+Penalty가 초반에 빠르게 0으로 떨어지는 게 눈에 띕니다. reward hacking 억제가 학습 초기에 완료된다는 뜻.
+
+*(사소한 흠: 캡션은 "outcome, strategy, and total rewards"라고 적었는데 범례는 Accuracy/Strategy/**Penalty**입니다. total 곡선은 없습니다.)*
+
+**Figure 7 — emergent tool 사용 성공률** ★
+
+본문은 "consistent upward trend"라고 서술하지만, **실제 곡선은 점진적 상승이 아니라 phase transition에 가깝습니다.**
+
+- step 0 ~ **270**: **0.0에서 완전히 평탄** (emergent tool 사용 성공이 사실상 없음)
+- step **270 ~ 350**: **0.0 → ~0.65로 급등**
+- step 350 ~ 1100: ~0.7–0.8에서 진동
+
+즉 emergence가 **특정 시점에 갑자기 켜집니다.** 학습을 270 step 전에 끊었다면 이 능력을 아예 못 봤을 것이라는 뜻이고, RL 예산 산정에 직접 영향을 주는 관찰입니다.
+
+**Figure 17 — 학습 중 benchmark 정확도 (1000 step)**
+
+| Benchmark | 궤적 |
+|---|---|
+| OCRBench-Rot90 | ~54 → **step 200에서 ~46으로 하락** → 400에서 ~72.5 → 이후 **~74.5–76에서 평탄** |
+| ChartQAPro-Hori | ~31 → 400에서 ~38.2 → 이후 ~38–40에서 진동 |
+| MVToolBench | ~30 → 500에서 ~59.5 → 1000에서 ~62.5 |
+
+두 가지 관찰:
+
+1. **OCRBench-Rot90에 초기 하락 구간이 있습니다** (step 100→200에서 54→46). SFT 체크포인트에서 RL로 넘어가는 전이 구간의 불안정성으로 보입니다. 저자들은 언급하지 않습니다.
+2. **저자의 "no signs of plateauing" 주장은 그래프와 잘 맞지 않습니다.** Limitations에서 "성능이 계속 오르며 plateau 조짐이 없다 → scaling하면 더 좋아진다"고 적었는데, 실제로는 세 곡선 모두 step 400~500 이후 뚜렷하게 완만해집니다. MVToolBench는 500→1000의 500 step 동안 59.5→62.5로 3%p 오르는 데 그칩니다. **상승이 멈춘 건 아니지만 "포화 조짐이 없다"고 하긴 어렵습니다.** scaling으로 rotation 문제가 해결될 거라는 기대는 이 그래프로는 뒷받침되지 않습니다.
+
 ---
 
 ## 7. Ablation (Table 3)
@@ -357,7 +413,32 @@ CodeVision-7B 기준.
 2. **Strategy reward 제거의 타격이 가장 크다** — MVToolBench 60.1 → 50.7. outcome reward만으로는 복잡한 tool-use 전략을 못 배운다는 근거.
 3. **Penalty 제거는 V*에 치명적** — 83.7 → 71.2. reward hacking(불필요한 crop 반복, 이미 올바른 이미지 회전)이 실제로 성능을 갉아먹습니다.
 
-**Cold start의 필요성 (Figure 16)** — SFT 없이 base에서 바로 RL을 돌리면 **의미 있는 개선에 실패**합니다. code generation의 action space가 너무 방대하고 비구조적이라 pure RL exploration으로는 유용한 정책을 못 찾는다는 설명. `❓` 구체 수치는 그림에만 있음.
+### Figure 15 — reward 성분별 학습 동역학
+
+| 패널 | CodeVision (full) | w/o Strategy | w/o Penalty |
+|---|---|---|---|
+| (a) Penalty Term | ~0.05에서 평탄 | ~0.2까지 상승 | **~0.35까지 상승**, 변동 극심 |
+| (b) Entropy | 0.8 → **~0.2**로 꾸준히 하강 | ~0.45에서 정체 | ~0.42에서 정체 |
+| (c) **Tool Turns** | **~1.0에서 평탄** | step 300 부근 **~2.5–3.0으로 급등** | **~3.5–4.0으로 급등** |
+
+**(c)가 결정적입니다.** penalty를 빼면 tool turn이 **3.5~4회로 폭증**합니다. §4.2에서 저자가 서술한 reward hacking — "rotate90/180/270을 순서대로 다 호출해서 strategy reward를 긁어모으는" 행동 — 이 그래프로 확인됩니다. full model은 **평균 1턴**을 유지합니다.
+
+또 하나: **ablated run들은 step 400~450에서 곡선이 끊깁니다** (full은 600까지). 학습이 붕괴해 중단된 것으로 보입니다. 저자들이 서두에 언급한 "training collapse가 자주 발생한다"는 서술과 맞물립니다.
+
+### Figure 16 — cold start의 필요성 ★
+
+SFT 없이 base에서 바로 RL을 돌린 경우(`w/o SFT`), 본문은 "의미 있는 개선에 실패"라고만 적었지만 **그래프는 훨씬 극적입니다.**
+
+| 패널 | w. SFT | w/o SFT |
+|---|---|---|
+| (a) Entropy | 0.78 → ~0.19 (600 step) | 0.62 → ~0.3, **step ~230에서 run 종료** |
+| (b) **Tool Turns** | ~1.4 → ~0.95 유지 | **step ~30에서 0.0으로 붕괴, 이후 계속 0** |
+| (c) Accuracy Reward | 0.3 → **~0.7** | **~0.15–0.2에서 평탄** |
+| (d) Strategy Reward | 0.2 → **~0.58** | **0.0에서 평탄** |
+
+**SFT 없는 모델은 tool을 아예 부르지 않게 됩니다.** turn이 0으로 붕괴하고 strategy reward가 0에 고정된다는 건, "성능이 덜 올랐다"가 아니라 **tool use라는 행동 자체가 소멸했다**는 뜻입니다. RL이 "tool을 안 쓰는 게 이득"이라는 local optimum으로 즉시 수렴한 것입니다.
+
+> **우리 과제에 매우 중요합니다.** 앞단에 소형 reasoning 모델을 두고 tool call을 학습시키려면, **pure RL로는 부트스트랩이 안 됩니다.** SFT cold start가 선택이 아니라 필수 조건이라는 걸 이 그림이 보여줍니다. 모델이 작을수록 더 심할 가능성이 높고요. 실험 계획에 SFT 데이터 구축 비용을 반드시 반영해야 합니다.
 
 ---
 
@@ -374,7 +455,21 @@ CodeVision-7B 기준.
 | 13 | "성공했지만 비효율". crop이 길고 좁은 띠 모양이라 무관한 영역을 많이 포함 — 과도하게 보수적인 safe cropping 경향 |
 | 14 | **실패 사례.** orientation 교정과 대략적 위치 추론은 성공했으나 **정밀 좌표 예측에서 실패** — crop이 목표 영역 바로 옆으로 빗나감 |
 
-Figure 8은 emergent tool의 word cloud (brightness 조절, blur, edge detection 등).
+**Figure 8 — emergent tool word cloud 판독** ★
+
+RL 학습 중 발굴된 tool 전체 목록입니다:
+
+```
+brightness_down, brightness_up, contrast_up, autocontrast,
+grayscale, gaussian_blur, smooth, sharpen, sharpness,
+edge_detect, resize
+```
+
+**여기서 결정적인 관찰이 하나 나옵니다 — 11개가 전부 photometric(밝기·대비·블러·샤프닝·엣지) 연산이고, `resize` 하나만 geometric입니다.** 그마저도 크기 변환일 뿐입니다.
+
+**임의 각도 rotation도, shear도, perspective 보정도 emerge하지 않았습니다.** code-as-tool은 원리상 `image.rotate(37)`을 못 부를 이유가 없는데도요. 즉 **"무한한 toolset"이라는 주장이 geometry 축에서는 실현되지 않았습니다.** 모델이 새로 발견한 건 전부 "픽셀 값을 바꾸는" 연산이지 "픽셀 위치를 바꾸는" 연산이 아닙니다.
+
+> 이건 §9-④(continuous rotation이 빈 자리) 주장의 **직접적 증거**입니다. 저자들의 emergence 사례를 그대로 인용하면서 "단, geometric transformation은 emerge하지 않았다"고 지적할 수 있습니다.
 
 **저자가 명시한 Limitations**
 
@@ -424,7 +519,9 @@ Figure 8은 emergent tool의 word cloud (brightness 조절, blur, edge detection
 
 **④ discrete 4방향만 다룬다**
 
-must-use tool set이 `{rotate90, rotate180, rotate270, flip-h, flip-v, crop}` 6개로 닫혀 있습니다. **임의 각도(예: 37°) rotation은 다루지 않습니다.** 실제 사진의 기울어짐은 연속적인데, 여기서 continuous rotation이 통째로 빈 자리입니다. code-as-tool은 원리상 임의 각도를 부를 수 있는데도 학습·평가가 4방향에 묶여 있다는 게 아이러니 — 저자들 스스로 Limitations에서 tool 다양성 확장을 언급합니다.
+must-use tool set이 `{rotate90, rotate180, rotate270, flip-h, flip-v, crop}` 6개로 닫혀 있습니다. **임의 각도(예: 37°) rotation은 다루지 않습니다.** 실제 사진의 기울어짐은 연속적인데, 여기서 continuous rotation이 통째로 빈 자리입니다.
+
+그리고 **Figure 8이 이 주장의 결정적 증거입니다.** 저자들이 자랑하는 emergent tool 11개가 전부 photometric 연산이고 geometric은 `resize` 하나뿐입니다. code-as-tool이 원리상 `image.rotate(37)`을 부를 수 있는데도 **RL은 새로운 geometry를 한 번도 발견하지 못했습니다.** "무한한 toolset"이라는 프레임이 geometry 축에서는 작동하지 않은 것이고, 이건 우연이 아니라 **must-use tool set을 4방향으로 닫아둔 process supervision의 직접적 귀결**로 보입니다. 저자들 스스로 Limitations에서 "must-use 목록 의존"을 한계로 인정합니다.
 
 **⑤ abstain은 penalty일 뿐 policy가 아니다**
 
@@ -435,10 +532,13 @@ Inappropriate Tool Use Penalty는 학습 중 신호일 뿐, **"이 이미지는 
 - **평가 지표를 transformation별로 쪼개서 보고할 것.** 평균 하나로 뭉치면 이 논문처럼 flip 이득이 rotation 실패를 가립니다.
 - **Source 컬럼(untransformed)을 반드시 함께 보고할 것.** regression 없음을 증명하는 게 앞단 모델 방식의 필수 방어선입니다.
 - **perception task와 reasoning task를 분리할 것.** OCRBench/ChartQAPro 이분법은 잘 만든 설계라 그대로 차용할 만합니다.
+- **SFT cold start를 예산에 반드시 포함할 것.** Figure 16이 보여주듯 pure RL은 tool use 행동 자체를 소멸시킵니다(tool turn → 0). 앞단 모델이 소형일수록 더 심할 가능성이 높습니다. "RL만으로 앞단을 학습시킨다"는 계획은 이 그림 하나로 반박됩니다.
+- **RL 예산을 최소 300 step 이상 잡을 것.** Figure 7에서 emergent tool 사용이 step 270 부근에서야 phase transition으로 켜집니다. 그 전에 끊으면 능력이 없다고 오판하게 됩니다.
+- **방향이 애매한 이미지를 평가셋에 넣을 것.** 이 논문의 benchmark는 전부 텍스트 중심(OCRBench, ChartQAPro, HierText)이라 방향이 항상 잘 정의됩니다. 하늘·텍스처·추상 패턴을 넣으면 선행 연구가 측정하지 않은 축이 열립니다.
 
 ---
 
 ## 출처
 
-원문 PDF 직접 대조 완료 (arXiv 2512.03746v1, 20쪽). 본문·Table 1~3·Implementation Details·Limitations 전부 확인했습니다.
-Figure 1(diagnostic 수치), Figure 5·7·15·16·17(학습 곡선)은 그림에만 있어 수치 미확보 — `❓` 표시한 항목들이 그것입니다.
+원문 PDF 직접 대조 완료 (arXiv 2512.03746v1, 20쪽). 본문·Table 1~3·Implementation Details·Limitations 전부 확인.
+Figure 1·5·7·8·15·16·17은 해당 페이지를 200 dpi로 렌더링해 직접 판독했습니다. 그래프에서 눈으로 읽은 값은 `~`로 표기했고, 정밀한 값이 필요하면 원 그림을 다시 볼 것.
