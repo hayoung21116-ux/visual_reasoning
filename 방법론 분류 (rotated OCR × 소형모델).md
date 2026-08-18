@@ -67,10 +67,7 @@
 
 - **Chain-of-Focus** — 고정 crop/zoom 구조라 출력이 단순하고, tool만 rotate로 바꾸면 그대로 최소 baseline이 된다.
 - **OpenThinkIMG** — 표준 tool interface와 RL 환경이 이미 갖춰져 있어 밑바닥부터 만들 필요가 없다.
-- **Beacon** ★ — "tool이 실제로 도움이 됐는가"를 학습 신호로 삼는데, rotated OCR에서는 **회전 전후 OCR 정확도 차이**로 그걸 teacher 없이 공짜로 잴 수 있다.
-- **Act Wisely / Metis** — accuracy와 efficiency를 분리 최적화하는 HDPO 구조가 abstain 설계에 쓸 만하다. **(단, 전체 정책으로는 부적합 — 아래 주의)**
-
-> **Metis 주의:** tool 호출을 **98% → 2%로 줄이며** 정확도를 올린 논문인데, 이건 *"대부분의 문제에 tool이 불필요한"* 세팅입니다. **우리는 정반대**예요 — rotated OCR에서는 거의 항상 회전이 필요합니다. Beacon도 같은 지점을 비판합니다(*"tool 사용을 억제하는 방향이라 과제 의존적 적응성이 없다"*). **abstain 부분에만 참고하세요.**
+- **Beacon** ★ — "tool이 실제로 도움이 됐는가"를 학습 신호로 삼는데, rotated OCR에서는 **회전 전후 OCR 정확도 차이**로 그걸 teacher 없이 공짜로 잴 수 있다 → *"부를까 말까"*가 아니라 **"어느 각도가 맞았나"의 graded reward**로 전용 가능.
 
 ### ⚠️ 조건부 — 3B에서 위험, 보완 필요
 
@@ -86,6 +83,7 @@
 
 ### 🤔 참고만
 
+- **Act Wisely / Metis** — **tool 과용을 줄이는 게 목표(98%→2%)인데 우리는 거의 항상 회전이 필요해서 최적화 방향이 반대다.** 게다가 HDPO의 이중 채널 + LLM judge 데이터 필터링은 3B RL에 얹기엔 무겁고, "tool 없이도 풀리는 샘플을 걸러낸다"는 전제도 회전된 입력에는 성립하지 않는다 → **tool 과용 억제가 필요해지면 CodeVision의 turn-limit penalty 쪽이 훨씬 가볍다.**
 - **FaithEyes** — tool output의 유용성을 judge로 평가하는데, **우리는 OCR 결과 자체가 검증 신호**라 judge가 필요 없다.
 - **TextCall** — *"tool 결과 이미지 없이 tool-call만으로 gain이 나는가"*를 분석하는데, **회전은 돌린 이미지를 다시 봐야 글자를 읽으므로 성립할 수 없다** → 역으로 *"우리 과제는 tool result가 필수인 케이스"*라는 근거로 인용 가능.
 
@@ -145,8 +143,8 @@ Seeing Straight이 **분류 헤드만으로 98%**를 냈으니, reasoning 모델
 [3] RL — reward에 OCR 결과를 직접 사용
      └ Beacon식 tool-induced gain = 회전 전후 OCR 정확도 차이
 
-[4] abstain — 방향이 애매한 문서를 섞어 평가
-     └ Metis의 decoupled 구조 참고
+[4] (선택) abstain — 방향이 애매한 문서를 섞어 평가
+     └ 문서 스코프에서는 비중이 작음. 필요해지면 간단한 penalty로 시작
 ```
 
 **[0]과 [1a]를 먼저 하시길 권합니다.** [1a]에서 분류기가 이미 95%+를 낸다면 reasoning 방식의 정당화가 §4의 3·4번으로 좁혀지고, 못 낸다면 그 자체가 우리 방식이 필요한 근거가 됩니다. **어느 쪽이 나와도 방향이 정해집니다.**
