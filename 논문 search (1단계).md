@@ -6,12 +6,12 @@
 **표기 규칙**
 - 항목마다 **원문 대조 여부를 맨 끝에 명시**합니다. 인용 전에 반드시 확인할 것.
   - **B-1**: 원문 PDF 대조 완료 (Figure까지 렌더링해 판독)
-  - **B-6**: 원문 PDF 미확보 — 동반 GitHub 저장소·초록 기반
+  - **B-0**: 원문 PDF 미확보 — 동반 GitHub 저장소·초록 기반
 - 그래프에서 눈으로 읽은 값은 `~`로 표기합니다 (본문에 수치가 없는 것들).
 - 기술 용어는 영어 원어 그대로 씁니다.
 
 **수록 현황**
-- [x] B-6. Thinking with Images 서베이 ← **지도. 먼저 읽을 것**
+- [x] B-0. Thinking with Images 서베이 ← **지도. 먼저 읽을 것**
 - [x] B-1. Thinking with Programming Vision (CodeVision)
 - [ ] A-2. EquiAdapt
 - [ ] B-3. DeepEyes
@@ -20,7 +20,7 @@
 
 ---
 
-# B-6. Thinking with Images for Multimodal Reasoning: Foundations, Methods, and Future Frontiers
+# B-0. Thinking with Images for Multimodal Reasoning: Foundations, Methods, and Future Frontiers
 
 > **B-1보다 먼저 읽으세요.** 이건 서베이라서 실험이 없습니다. 그래서 이 항목의 1단계는 "실험 세팅·결과" 대신 **taxonomy를 정확히 파악하는 것**입니다. CodeVision이 자기 위치를 어디로 주장하는지가 여기서 결정됩니다.
 
