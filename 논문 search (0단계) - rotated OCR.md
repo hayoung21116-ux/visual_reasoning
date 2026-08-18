@@ -145,7 +145,7 @@ tool 목록에 **rotate·flip이 이미 포함**돼 있고, base는 Qwen2.5-VL-7
 | **A그룹 (canonicalization)** | 구 0단계 A-1~A-5 | **Seeing Straight과 같은 계열**의 이론적 배경. 특히 **A-2의 identity prior**(*"이미 정방향이면 '회전 불필요'라고 답하라"*)와 **A-4의 실물 촬영 검증**은 그대로 쓸 수 있음 |
 | **CodeVision 대비 포지셔닝** | 구 1단계 B-1 | 경쟁 논문. **Rot90 +2.1 / Rot270 +3.5**라는 분해 수치는 우리 motivation의 핵심 |
 | **Thinking with Images taxonomy** | 구 1단계 B-0 | related work 골격. engine/machine 어휘 |
-| **RotBench 진단** | 구 0단계 전제 | ⚠️ **주의** — *"아무도 90°/270°를 구분 못 한다"*는 **자연 이미지** 얘기입니다. 텍스트는 읽기 방향으로 구분되므로 **OCR 스코프에서는 이 논거를 쓰면 안 됩니다** (`방법론 분류` §4) |
+| **RotBench 진단** | 구 0단계 전제 | 보조 근거로만. *"아무도 90°/270°를 구분 못 한다"*는 **자연 이미지** 기준이라, 문서 도메인에서는 **P-1(Seeing Straight)의 직접 측정치**(Gemini-2.5 Pro 4-class 34.11%)를 쓰는 게 강합니다 |
 
 **폐기된 판단:**
 - ~~closed-source 적용 가능성이 최대 강점~~ → 본 모델 feature를 쓰기로 하면 성립 안 함
