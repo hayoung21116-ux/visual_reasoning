@@ -112,8 +112,8 @@ Goswami 외 (OLA Electric · Krutrim AI). **원문 대조 완료.**
 ### ✅ 적합 — 3B에서 바로 시도 가능
 
 - **Seeing Straight** ★ *(tool reasoning이 아니라 분류 파이프라인)* — 우리 스코프(문서 회전 → OCR)를 그대로 다룬 **가장 가까운 선행 연구**이고 **소형 모델 vision encoder + 분류 헤드만으로 98%**를 냈으므로, **가장 먼저 재현해 성능 상한을 잡아야 할 baseline**이다(§1·§4).
-- **Chain-of-Focus** — 고정 crop/zoom 구조라 출력이 단순하고, tool만 rotate로 바꾸면 그대로 최소 baseline이 된다.
-- **OpenThinkIMG** — 표준 tool interface와 RL 환경이 이미 갖춰져 있어 밑바닥부터 만들 필요가 없다.
+- **Adaptive-CoF** ★ *(구 Chain-of-Focus, v3에서 개명)* — **AGAR reward가 그룹 내에 직답 성공이 있을 때만 tool 사용을 깎는 구조**라, 정방향 샘플을 빼지 않고도 shortcut을 막고 abstain을 자연스럽게 학습시킬 수 있다.
+- **OpenThinkIMG** ★ — **Qwen2-VL-2B에서 base 29.56 → SFT 45.67 → V-ToolRL 59.39**를 보인 유일한 소형 검증 사례이자, tool interface·궤적 생성·RL 환경이 갖춰진 오픈소스 인프라다.
 - **Beacon** ★ — "tool이 실제로 도움이 됐는가"를 학습 신호로 삼는데, rotated OCR에서는 **회전 전후 OCR 정확도 차이**로 그걸 teacher 없이 공짜로 잴 수 있다 → *"부를까 말까"*가 아니라 **"어느 각도가 맞았나"의 graded reward**로 전용 가능.
 - **ToolsRL** ★ — **rotate·flip이 이미 tool 목록에 있고**, 2단계 curriculum이 비싼 trajectory 없이 tool 사용법을 가르쳐 **3B의 cold start 부담을 덜어준다**.
 - **ReVPT** — 고정 tool 4개를 GRPO로 학습해 **"2B 스케일에서 특히 큰 향상"**을 보고한 사례라, 소형에서 tool-use RL이 실제로 된다는 직접 증거다.

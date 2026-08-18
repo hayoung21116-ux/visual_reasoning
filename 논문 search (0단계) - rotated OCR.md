@@ -16,7 +16,7 @@
 | 그룹 | 역할 | 논문 |
 |---|---|---|
 | **P** | **앞단 파이프라인** — 우리가 만들 것의 직접 선례 | Seeing Straight |
-| **T** | **tool 구조** — 회전을 어떻게 tool로 붙일까 | Chain-of-Focus, OpenThinkIMG |
+| **T** | **tool 구조** — 회전을 어떻게 tool로 붙일까 | Adaptive-CoF, OpenThinkIMG |
 | **R** | **학습 방법** — 3B에서 어떻게 가르칠까 | ToolsRL, ReVPT, Beacon |
 
 ---
@@ -45,23 +45,55 @@
 
 # T. tool 구조
 
-## T-1. Chain-of-Focus (arXiv 2505.15436) `~` — 최소 baseline 후보
+## T-1. Adaptive Chain-of-Focus (arXiv 2505.15436v3) `✅` — ★ shortcut 문제의 해답
 
-- **기존 문제점:** 질문에 필요한 영역이 작으면 **한 번 봐서는 읽을 수 없다.**
-- **핵심 아이디어:** 필요한 영역을 **반복적으로 search/zoom**하며 추론을 이어간다. SFT → RL 2단계.
+> **주의: v3에서 제목과 초점이 바뀌었습니다.** *"**Adaptive** Chain-of-Focus Reasoning via Dynamic Visual Search and Zooming for **Efficient** VLMs"*. 방법 이름도 **Adaptive-CoF**입니다.
 
-가장 단순한 형태의 "tool 쓰는 추론"입니다. 모델이 이미지를 보고 → "저기를 확대해야겠다" → 잘라서 다시 보고 → 답합니다. 구조가 단순해서 **출력이 정형화**되고, 그만큼 소형 모델이 배우기 쉽습니다.
+- **기존 문제점:** 능동적 zoom은 성능을 올리지만 **연산 비용이 크고 전역 이해를 해칠 수 있다.**
+- **핵심 아이디어:** **필요할 때만** 검색·확대하도록 가르친다. SFT(visual search agent가 만든 궤적) → RL(**AGAR**).
 
-**→ 아이디어 씨앗:** **tool만 `zoom`에서 `rotate`로 바꾸면 그대로 우리 최소 baseline이 됩니다.** 3B에서 tool call을 붙이는 가장 낮은 진입장벽이에요. *(이 항목은 2차 자료 기반이라 원문 확인이 필요합니다.)*
+**★ AGAR가 우리 문제에 직접 쓰입니다.**
 
-## T-2. OpenThinkIMG (arXiv 2505.08617) `~` — 구현 인프라
+```
+r_i = c_i·[ d_i·1 + z_i·(1 − δ·g) ] + (1 − c_i)·(γ·f_i)
+      c: 정답 여부   d: 직답   z: zoom 경로   f: 형식 유효
+      g: 그룹 G개 rollout 중 "직답으로 맞힌 게 하나라도 있으면" 1
+      δ = 0.2 (페널티)   γ = 0.1 (오답이어도 형식 맞으면 주는 보너스)
+```
 
-- **기존 문제점:** 시각 tool RL을 하려면 **tool interface·trajectory 생성·RL 환경을 밑바닥부터** 만들어야 한다.
-- **핵심 아이디어:** 표준화된 **visual tool interface + trajectory 생성 파이프라인 + RL 환경**을 오픈소스로 제공한다.
+읽는 법 — **직답으로 맞히면 항상 최대 보상 1.** tool을 쓴 경로는 **그룹에 직답 성공이 있을 때만(g=1) 0.8로 깎입니다.** 직답이 아무도 못 맞히면(g=0) tool 경로도 만점입니다.
 
-방법론이라기보다 **작업대**에 가깝습니다. tool을 어떤 형식으로 부르고, 결과를 어떻게 다시 넣고, 궤적을 어떻게 모을지가 이미 정리돼 있어요.
+**결과:** V\* Bench 71.2 → **90.1 (+18.9)**, MME-RealWorld-Lite 42.3 → 50.9 (+8.6). 그러면서 **zoom 호출 75% 감소, 토큰 약 50% 감소.** base는 Qwen2.5-VL-7B.
 
-**→ 아이디어 씨앗:** 우리가 새로 설계할 필요 없는 부분입니다. **여기서 시작해 rotate tool만 추가하는 게 가장 빠른 경로**입니다.
+**→ 아이디어 씨앗:**
+1. **★ AGAR가 R-1(ToolsRL)이 지적한 shortcut 문제의 해답입니다.** ToolsRL은 정방향 샘플을 *빼서* shortcut을 막았는데, AGAR는 **빼지 않고도 막습니다** — 회전된 이미지는 직답이 실패하니 g=0이 되어 tool 사용이 만점을 받고, 정방향 이미지는 직답이 통하니 g=1이 되어 tool 사용이 깎입니다. **abstain을 별도 장치 없이 자연스럽게 학습**시킬 수 있습니다.
+2. **단, 방향이 반대일 수 있습니다.** 이 논문의 목표는 tool 호출을 *줄이는* 것(75% 감소)인데, rotated OCR은 대부분 회전이 필요합니다. **δ를 낮추거나 부호를 재검토**해야 합니다.
+3. visual token을 SFT·RL loss에서 **mask out**하는 처리가 학습 안정성에 중요하다고 서술합니다.
+4. base가 7B 하나뿐이라 **3B 재현은 미검증**입니다.
+
+## T-2. OpenThinkIMG (arXiv 2505.08617v2) `✅` — ★ **2B 검증 사례**
+
+- **기존 문제점:** 시각 tool RL을 하려면 **tool interface·궤적 생성·학습 환경을 밑바닥부터** 만들어야 하고, 정적 시범에 대한 SFT만으로는 **동적 tool 호출에 일반화가 안 된다.**
+- **핵심 아이디어:** 표준 tool interface + 궤적 생성 + 학습 환경을 오픈소스로 제공하고, 그 위에 **V-ToolRL**(tool 상호작용 피드백으로 직접 최적화)을 얹는다.
+
+**★ 우리 제약에 가장 직접적인 증거입니다 — base가 QWEN2-VL-2B입니다.**
+
+| 단계 | 정확도 (chart reasoning) |
+|---|---|
+| Qwen2-VL-2B base | 29.56 |
+| + SFT (cold start) | **45.67** |
+| + text-based RL | 51.63 |
+| **+ V-ToolRL (full)** | **59.39** |
+
+**2B로 GPT-4.1을 +8.68 앞섭니다.** TACO·CogCoM 같은 supervised tool-learning baseline 대비 평균 +12.7.
+
+**→ 아이디어 씨앗:**
+1. **★ 2B에서 "SFT cold start → tool RL" 파이프라인 전체가 작동한다는 직접 증거입니다.** ReVPT의 "2B 스케일 향상"보다 훨씬 구체적이에요.
+2. **cold start만으로는 부족합니다** — SFT 45.67에서 RL로 59.39까지 **+13.72**가 더 나옵니다.
+3. **"V"가 핵심입니다** — tool 출력 이미지를 실제로 다시 넣는 V-ToolRL이 text-only RL보다 **+7.76**. 회전은 돌린 이미지를 봐야 하므로 이 성분이 필수입니다.
+4. **tool 목록에 rotate가 없습니다** (POINT, DrawH/VLine, ZoomInSubplot, SegmentRegionAroundPoint — chart 특화). **인프라만 가져오고 tool은 새로 넣어야** 합니다.
+5. **⚠️ 학습이 진행되면 tool 호출이 0.63 → 0.10~0.12로 급감**합니다. chart에서는 적절하지만 **rotated OCR에서는 해로울 수 있는 방향**이라 reward 설계에서 통제가 필요합니다.
+6. 궤적 생성에 **Qwen2-VL-72B**를 씁니다 — 데이터 준비에 대형 모델이 필요합니다.
 
 ---
 
@@ -128,11 +160,11 @@ tool 목록에 **rotate·flip이 이미 포함**돼 있고, base는 Qwen2.5-VL-7
 
 # 읽는 순서
 
-1. **P-1 Seeing Straight** — 우리가 만들 것의 직접 선례이자 넘어야 할 baseline. **여기서 시작**
-2. **R-1 ToolsRL** — 3B에서 어떻게 가르칠지의 답. rotate가 이미 tool에 있음
-3. **R-2 ReVPT** — 소형에서 된다는 증거. 실현 가능성 확인용
-4. **T-1/T-2** — 실제 구현 들어갈 때
-5. **R-3 Beacon** — reward 설계 정교화 단계에서
+1. **P-1 Seeing Straight** — 만들 것의 직접 선례이자 넘어야 할 baseline. **여기서 시작**
+2. **T-2 OpenThinkIMG** — **2B에서 전 파이프라인이 작동한다는 증거.** 실현 가능성이 여기서 결정됨
+3. **R-1 ToolsRL** — rotate reward 설계와 2단계 curriculum
+4. **T-1 Adaptive-CoF** — AGAR로 shortcut·abstain을 한 번에 처리하는 법
+5. **R-2 ReVPT / R-3 Beacon** — reward 정교화 단계에서
 
 ---
 
