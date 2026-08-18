@@ -5,9 +5,9 @@
 > 각 논문을 **0단계**(기존 문제점 한 줄 + 핵심 아이디어 한 줄 + 쉬운 설명 한 문단 + 아이디어 씨앗)로 정리합니다.
 
 **신뢰도 표기**
-- `✔` 이번 조사에서 초록·저장소로 직접 확인
-- `~` 2차 자료(서베이·타인 정리) 기반, 미검증 — 채택 전 확인 필요
-- **전부 원문 PDF 미대조입니다.** 인용 전 반드시 원문 확인.
+- `✅` **원문 PDF 대조 완료**
+- `✔` 초록·저장소로 확인 (원문 미대조)
+- `~` 2차 자료 기반, 미검증 — 채택 전 확인 필요
 
 ---
 
@@ -23,20 +23,23 @@
 
 # P. 앞단 파이프라인
 
-## P-1. Seeing Straight: Document Orientation Detection for Efficient OCR (arXiv 2511.04161) `✔` ★ **가장 중요**
+## P-1. Seeing Straight: Document Orientation Detection for Efficient OCR (arXiv 2511.04161v2) `✅` ★ **가장 중요**
 
 - **기존 문제점:** 스캔·촬영 문서의 방향 보정은 실제 파이프라인의 필수 전처리인데, **회전된 문서에서 OCR 성능이 무너진다.**
-- **핵심 아이디어:** 본 모델 앞에 **경량 회전 분류기**를 두되, **Phi-3.5-Vision의 vision encoder를 재활용**하고 dynamic image cropping을 붙여 **12-class 회전 분류**로 fine-tune한다.
+- **핵심 아이디어:** 본 모델 앞에 **경량 회전 분류기**를 두되, **Phi-3.5-Vision의 vision encoder(CLIP ViT-L/14)를 재활용**하고 dynamic cropping으로 뽑은 **CLS 토큰들을 평균내 2층 FFN**에 넣어 **12-class(30° 간격) 분류**로 fine-tune한다. **약 304M, H100에서 0.5초.**
 
 문서를 스캔하거나 사진으로 찍으면 방향이 틀어지는 일이 흔합니다. 사람은 종이를 돌려 보면 그만이지만 OCR 모델은 그걸 못 해요. 이 논문은 **"읽기 전에 먼저 똑바로 세우는 작은 모듈"**을 붙였습니다. 새 모델을 만든 게 아니라 **이미 있는 소형 VLM의 눈(vision encoder)을 빌려다** 분류 헤드만 얹은 겁니다.
 
-**결과:** 회전 식별 **98% / 96%**. OCR 성능은 closed-source **최대 20%**, open-weights **최대 4배** 개선. 부산물로 **OCR-Rotation-Bench(ORB)** 공개 — 1,863장, ORB-En + **ORB-Indic(11개 저자원 언어)**.
+**결과:** 회전 식별 12-class **98.00 / 96.71**, 4-class 96.81 / 92.68. 다운스트림 OCR은 docTR가 15.63 → **63.11**(≈4배), Tesseract가 24.06 → 48.99(≈2배). 부산물로 **ORB** 공개 — 1,863장(ORB-En 897 + **ORB-Indic 966**, 11개 언어).
+
+**★ VLM은 문서에서도 방향을 못 맞힙니다.** 4-class(random 25%)에서 **Gemini-2.5 Pro 34.11**, Gemma-3 27B 30.57, GPT-4o 59.58. 텍스트가 가득한 문서인데도요.
 
 **→ 아이디어 씨앗:**
-1. **가장 먼저 재현해 성능 상한을 잡아야 할 baseline입니다.** 분류기가 어디까지 가는지 알아야 우리 방식의 정당화가 정해집니다.
-2. **자산이자 위협입니다.** 구조가 통한다는 증명이지만, *"문서 회전을 앞단에서 고친다"*는 아이디어는 **이미 98%로 거의 풀렸습니다.**
-3. **"open-weights OCR이 회전만으로 1/4 토막"**은 우리 논문 motivation 수치로 바로 쓸 수 있습니다.
-4. **빈틈:** 문서 중심이라 **자연 장면 텍스트(간판·손글씨)는 약할 수 있고**, 12-class 분류라 **"판단 보류"를 표현할 수 없습니다.**
+1. **가장 먼저 재현해 성능 상한을 잡아야 할 baseline입니다.** 다만 분류기를 **비공개 문서 데이터셋**으로 학습시켰으므로 학습 데이터는 직접 구해야 합니다.
+2. **★ 실패 지점이 특정돼 있습니다.** 오분류 원인이 *"텍스트가 문서의 대부분을 차지하지 않을 때"*, *"텍스트 배치가 비균일할 때"*, *"과도한 padding·중심 이탈"*입니다(ORB-Indic 45건에서 **90°↔270° 혼동** 관찰). **CLS 토큰 평균은 전역 통계라 구조적으로 여기에 약합니다** — reasoning 모델이 이길 자리이고, 실패 사례가 이미 알려져 있어 실험 설계가 쉽습니다.
+3. **★ 저자가 future work로 "arbitrary-angle rotation"을 명시**했습니다. 12-class는 30° 단위라 그 사이 각도를 못 다룹니다.
+4. **headroom 주의.** 회전에 원래 취약한 docTR·Tesseract에서 큰 개선이 나온 것이고, **Qwen2.5-VL은 68.16 → 72.26(정방향 72.62)로 하락폭이 4.5%p뿐**입니다. 저자 표현대로 *"coarse 회전에는 부분적 invariance가 있지만 fine-grained에서는 모든 파이프라인이 무너지므로"* **12-class 이상으로 가야 격차가 보입니다.**
+5. ORB는 **디지털 회전**으로 만들어져 resampling artifact 통제가 안 돼 있습니다.
 
 ---
 
@@ -64,7 +67,7 @@
 
 # R. 학습 방법
 
-## R-1. ToolsRL / Visual Reasoning through Tool-supervised RL (arXiv 2604.19945, CVPR 2026) `✔` ★
+## R-1. ToolsRL / Visual Reasoning through Tool-supervised RL (arXiv 2604.19945, CVPR 2026) `✅` ★
 
 - **기존 문제점:** tool 사용법과 답 정확도를 **한꺼번에 학습시키면 불안정**하고, 좋은 tool-use trajectory를 만드는 게 **비싸다.**
 - **핵심 아이디어:** **2단계 curriculum으로 분리**한다 — Stage 1에서 정답 기반 **per-tool reward**로 tool 사용법만 익히고, Stage 2에서 GRPO로 답 정확도를 최적화한다.
@@ -73,7 +76,13 @@ tool을 쓰는 법과 문제를 푸는 법을 동시에 가르치면 둘 다 어
 
 tool 목록에 **rotate·flip이 이미 포함**돼 있고, base는 Qwen2.5-VL-7B입니다.
 
-**→ 아이디어 씨앗:** **회전은 우리가 각도를 직접 걸어서 데이터를 만들기 때문에 per-tool reward가 공짜로 나옵니다.** 3B에서 SFT cold start가 부담이라면 **이게 더 싼 대안**입니다. 우리 과제에 가장 잘 맞는 학습 레시피예요.
+**회전 reward가 이진 지시함수 하나입니다:** `R_rotflip(s_t) = 1[o(I_t) = o*]`. 현재 이미지 방향이 목표와 같으면 1. 끝입니다.
+
+**→ 아이디어 씨앗:**
+1. **회전은 각도를 직접 걸어서 데이터를 만들기 때문에 per-tool reward가 공짜입니다.** 3B에서 SFT cold start가 부담이라면 이게 더 싼 대안입니다.
+2. **★ 단계 분리가 필수입니다.** ablation에서 tool reward와 accuracy reward를 **동시에** 최적화하면 **58.1로, accuracy 단독(62.6)보다 나빴습니다.** 2단계 curriculum은 77.3입니다.
+3. **★ 함정 — Stage 1에는 회전된 샘플만 넣어야 합니다.** 정방향 문서를 섞으면 모델이 *"그냥 정방향이라 가정하고 답하기"* shortcut을 배웁니다. **이건 abstain 학습과 충돌하므로**, Stage 1은 회전만 / Stage 2에서 정방향을 섞는 설계가 필요합니다.
+4. base가 Qwen2.5-VL-7B 하나뿐이라 **3B 재현은 미검증**입니다.
 
 ## R-2. ReVPT / Reinforced Visual Perception with Tools (arXiv 2509.01656) `✔`
 
@@ -97,18 +106,23 @@ tool 목록에 **rotate·flip이 이미 포함**돼 있고, base는 Qwen2.5-VL-7
 
 | | 규모 | 용도 |
 |---|---|---|
-| **ORB** (P-1 부속) `✔` | 1,863장 | **주 평가.** rotated OCR 전용 |
-| **TIR-Bench** (2511.01833) `✔` | 13 task 중 1개 | **난이도 확인.** 최고 46%로 미포화. Rotated OCR task 보유 |
+| **ORB** (P-1 부속) `✅` | 1,863장 | **주 평가.** rotated OCR 전용 |
+| **TIR-Bench** (2511.01833) `✅` | 13 task 중 1개 | **난이도 확인.** 최고 46%로 미포화. Rotated OCR task 보유 |
 | 변형 OCRBench / ChartQAPro | 1,000 + 1,948문항 ×6조건 | **비교 축.** CodeVision 수치와 직접 대조 |
 | OCR-Robust (2606.26041) `✔` | 812문항 | **지표 틀만** (RCR·WCR·CRI) |
 
 상세는 `벤치마크 분석.md` §6·부록 2 참조.
 
-**TIR-Bench에서 얻은 결정적 문장:**
+**TIR-Bench의 fine-tuning 비교 실험** — Qwen2.5-VL-7B를 rotated OCR로 학습시킨 결과입니다.
 
-> *"방향을 먼저 복원하고 텍스트를 출력하는 **agentic 방식은, 회전된 데이터로 모델을 직접 fine-tuning할 때 생기는 catastrophic forgetting을 피한다**."*
+| 데이터 | Direct SFT | Tool-use SFT |
+|---|---|---|
+| 1k | ~0.44 | ~0.735 |
+| 15k | ~0.445 | ~0.848 |
 
-**본 모델을 얼리는 설계에 대한 가장 직접적인 성능상 근거**입니다.
+**Direct SFT는 데이터를 15배로 늘려도 0.44에서 평평합니다.** 반면 회전 각도를 먼저 출력하고 복원된 이미지를 읽는 agentic 방식은 계속 오릅니다. **"본 모델을 직접 학습시키는 것"에 대한 가장 강한 반증**입니다.
+
+> ⚠️ 저자들은 그 원인을 catastrophic forgetting으로 **추정**하지만(*"may cause forgetting"*), **측정한 실험은 없습니다.** 인용할 때는 **scaling 결과만** 쓰고 forgetting은 "저자들의 설명"으로만 언급하세요.
 
 ---
 
