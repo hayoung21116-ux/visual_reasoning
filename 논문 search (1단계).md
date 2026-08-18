@@ -5,8 +5,8 @@
 
 **표기 규칙**
 - 항목마다 **원문 대조 여부를 맨 끝에 명시**합니다. 인용 전에 반드시 확인할 것.
+  - **B-0**: 원문 PDF(v3, 57쪽) 대조 완료 — §3·§5·§7의 개별 방법 소개는 미독
   - **B-1**: 원문 PDF 대조 완료 (Figure까지 렌더링해 판독)
-  - **B-0**: 원문 PDF 미확보 — 동반 GitHub 저장소·초록 기반
 - 그래프에서 눈으로 읽은 값은 `~`로 표기합니다 (본문에 수치가 없는 것들).
 - 기술 용어는 영어 원어 그대로 씁니다.
 
@@ -22,136 +22,222 @@
 
 # B-0. Thinking with Images for Multimodal Reasoning: Foundations, Methods, and Future Frontiers
 
-> **B-1보다 먼저 읽으세요.** 이건 서베이라서 실험이 없습니다. 그래서 이 항목의 1단계는 "실험 세팅·결과" 대신 **taxonomy를 정확히 파악하는 것**입니다. CodeVision이 자기 위치를 어디로 주장하는지가 여기서 결정됩니다.
+> **B-1보다 먼저 읽으세요.** 서베이라서 실험이 없습니다. 이 항목의 1단계는 "실험 세팅·결과" 대신 **taxonomy·formal definition·challenges를 정확히 파악하는 것**입니다.
 
 ## 서지 정보
 
 | 항목 | 내용 |
 |---|---|
 | 제목 | *Thinking with Images for Multimodal Reasoning: Foundations, Methods, and Future Frontiers* |
-| 저자 | Zhaochen Su, Peng Xia, Hangyu Guo, Zhenhua Liu 외 |
-| 소속 | HKUST, UNC-Chapel Hill, Microsoft, CUHK, UIUC |
-| arXiv | 2506.23918 (2025-06, v2 존재) |
-| 자료 | github.com/zhaochen0110/Awesome_Think_With_Images (논문 목록 동반 저장소) |
+| 저자 | Zhaochen Su¹, Peng Xia², Hangyu Guo¹, Zhenhua Liu¹, Yan Ma, Xiaoye Qu, Jiaqi Liu², Yanshu Li¹, Kaide Zeng², Zhengyuan Yang³, Linjie Li³, Yu Cheng⁴, Heng Ji⁵, Junxian He¹, Yi R. (May) Fung¹ |
+| 소속 | ¹HKUST, ²UNC-Chapel Hill, ³Microsoft, ⁴CUHK, ⁵UIUC |
+| arXiv | 2506.23918**v3** (2025-07-03, cs.CV) — 57쪽 |
+| 저장소 | github.com/zhaochen0110/Awesome_Think_With_Images (실시간 갱신) |
 | 유형 | **Survey** — 실험·수치 없음 |
+
+**네 가지 기여 (초록 명시):** ① 패러다임의 foundational principles + 3단계 framework 확립 ② 각 단계 핵심 방법 리뷰 ③ 평가 benchmark·응용 지형 분석 ④ challenges와 future directions 제시.
+
+---
 
 ## 1. 문제 제기: semantic gap
 
-서베이의 출발 진단입니다.
+- 기존 multimodal reasoning은 **textual CoT**에 의존 → 이미 **ceiling**에 도달했다는 게 저자들 진단
+- 이미지가 **하나의 정적 feature vector로 encoding**되면 시각 세계의 relational structure가 **flatten**됨
+- 그 결과 **superhuman perception을 가진 모델조차 cognitively brittle**해진다
 
-- 기존 multimodal reasoning은 **textual Chain-of-Thought**에 의존
-- 이 text-centric 접근은 **vision을 정적인 초기 context로만 취급**
-- 결과: 풍부한 **perceptual data**와 이산적인 **symbolic thought** 사이에 **semantic gap**이 생김
+> 이 문장이 우리 논문에 그대로 쓸 만합니다 — "지각 능력이 뛰어나도 인지적으로는 취약하다"가 회전 실패를 설명하는 프레임이 됩니다.
 
-처방은 관점 전환입니다 — vision을 **passive input**에서 **dynamic, manipulable cognitive workspace**로 승격시킨다. 이미지가 "추론의 재료"가 아니라 "추론이 벌어지는 장소"가 되는 것.
+**해결이 여는 3가지 능력** (Figure 2):
 
-여기서 나오는 유명한 대비가 **thinking *about* images → thinking *with* images**입니다.
+| 능력 | 내용 | 예시 |
+|---|---|---|
+| **Dynamic Perceptual Exploration** | 한 번의 총체적 해석을 넘어 반복적 탐색 | 칼로리 라벨을 zoom-in해서 60 → 160으로 정정 |
+| **Structured Visual Reasoning** | 이미지를 **cognitive scratchpad**로 | 기하 문제에 보조선을 그려 넣으면 abstract deduction이 **visual pattern recognition으로 바뀜** |
+| **Goal-Oriented Generative Planning** | 생성 능력을 **시뮬레이션 엔진**으로 | 로봇 팔이 컵을 치는 미래 프레임을 생성 → **perceptual self-critique** |
 
-## 2. 핵심 기여: 3단계 taxonomy
+## 2. 3단계 taxonomy
 
-서베이의 가장 중요한 산출물입니다. 축은 **cognitive autonomy(모델이 얼마나 스스로 하는가)**이고, 각 단계 안에서 다시 **학습 방식(Prompt / SFT / RL)**으로 나뉩니다.
+축은 **cognitive autonomy**. 방을 재배치해 큰 소파를 넣는 문제를 러닝 예시로 씁니다.
 
-### Stage 1 — Tool-Driven Visual Exploration
+| Stage | 역할 | 러닝 예시에서 하는 일 | 제약 |
+|---|---|---|---|
+| **1** Tool-Driven Visual Exploration | tool orchestrator | `object_detector`, `distance_estimator` 호출 → "틈이 1.5m인데 소파는 2.0m 필요" | **미리 정의된 toolset의 정적 능력**에 갇힘 |
+| **2** Programmatic Visual Manipulation | **visual programmer** | matplotlib로 2D 평면도를 생성해 배치를 프로그램으로 시험 | **외부 실행 환경 의존** |
+| **3** Intrinsic Visual Imagination | visual thinker | 재배치된 방을 **photorealistic 이미지로 직접 생성**해 자기비판 | (아키텍처 병목 해소가 목표) |
 
-모델의 역할: **Commander(지휘관)**. 외부 시각 tool들을 골라 지시합니다. 지능이 "어떤 tool을 언제 쓸까"라는 **선택**에서 나옵니다.
+### ★ §2.2 "A Note on Non-Linearity" — 반드시 알아야 할 단서
 
-| 학습 방식 | 대표 방법 |
+저자들은 **3단계가 선형 진보가 아니라고 명시적으로 못 박습니다.**
+
+> *"These three stages do not represent a strictly linear progression. They are different implementation strategies (the 'How')..."*
+
+근거로 든 예: Stage 3가 가능한 모델이라도 "소파가 문을 통과하나?"를 알려면 **full simulation보다 Stage 1의 `measure` tool 한 번이 훨씬 효율적이고 robust**하다. 그래서 **지능은 peak capability가 아니라 "과제에 맞는 인지 도구를 고르는 능력"에 있다**고 씁니다.
+
+**단, 서베이 안에 긴장이 있습니다.** 초록은 *"spectrum of increasing cognitive autonomy"*라 하고 Figure 1은 *"Intelligence Increasing"*이라 표기하며 Stage 3를 *"the most advanced stage"*라 부릅니다. **위계를 제시하면서 동시에 선형성을 부인**하는 구조예요. 인용할 때 어느 쪽을 쓰는지에 따라 논지가 달라지므로 주의가 필요합니다.
+
+## 3. Formal definition (§2.3)
+
+**Paradigm I — Thinking *about* Images**
+```
+x_t ~ P(· | x_<t, v, Q; Θ),   v = Φ_V(I)
+```
+이미지는 한 번 encoding되어 **고정된 context v**가 되고, 추론 중 **수정되지 않습니다.**
+
+**Paradigm II — Thinking *with* Images**
+```
+z_t ~ P(· | S_t, I, Q; Θ)   where   z_t ∈ T_text ∪ I_vis
+```
+- `S_t = (z_1, ..., z_{t-1})` — **텍스트와 시각 단계가 섞인** 상태 이력
+- `I_vis` — 추론 중 도입·수정 가능한 중간 시각 산출물의 공간
+
+핵심 차이는 **state history가 동적**이라는 것. `z_t ∈ I_vis`는 ① 외부 tool의 출력(bounding box) ② 코드로 생성한 시각화(보조선) ③ 모델이 내재적으로 생성한 이미지(예측 프레임) 셋 다 될 수 있습니다.
+
+> **우리 설계를 이 표기로 쓸 수 있습니다.** 앞단 모델이 회전을 보정하면 그건 `z_1 ∈ I_vis`이고, 본 모델은 `S_2`부터 Paradigm I로 동작합니다. **"z_1만 외부 모델이 담당하는 hybrid"**로 형식화하면 positioning이 깔끔해집니다.
+
+## 4. ★ Unique Challenges (§2.4) — 4개
+
+우리 과제와 직결되는 절인데 이전 정리에서 통째로 빠져 있었습니다.
+
+| # | 이름 | 내용 |
+|---|---|---|
+| 1 | **Computational Cost** | 이미지 하나가 수천 개 visual patch로 분해됨. 중간 시각 단계 하나가 major computational event이고 multi-step은 **곱셈적 부담**. "token explosion"이 시각적 숙고의 깊이에 **hard ceiling**을 만듦 |
+| 2 | **Information Density** | *"One Flawed Image versus a Thousand Wrong Words"* |
+| 3 | **Architectural Divide** | vision과 language를 분리한 modular 설계가 **풍부한 공간 정보를 순차 포맷으로 번역**해야 해서 fine-grained detail을 잃음. 의도 형성 ↔ 결과 지각의 dynamic loop를 저해 |
+| 4 | **Cross-Task Generalization** | 하나의 visual strategy가 모든 과제에 맞지 않음. 기하=constructive, 세부 진단=analytical, 미로=simulative. **"다양한 전략을 유지하고 과제에 맞는 걸 고르는 meta-policy" 학습이 미해결 과제** |
+
+### Challenge 2를 특히 주목해야 합니다 ★
+
+저자들의 설명: zoom-in tool이 제품 대신 **아래 나무 탁자에 잘못 초점**을 맞추면, 모델은 그냥 실패하는 게 아니라 **나뭇결과 니스 광택에 대한 그럴듯한 분석을 새로 시작**합니다. 이 최초의 실수가 **false ground truth**를 세우고, 이후 모든 숙고를 오염시킵니다.
+
+> **이게 앞단 모델 방식의 최대 리스크를 서베이가 직접 언어화한 것입니다.** 앞단이 회전을 잘못 판정하면 본 모델은 "틀린 전제 위에서 내적으로 일관된 추론"을 합니다. 0단계 A-5의 `94 → 59.1 → 75.8`에서 완전 회복이 안 되는 이유가 여기 있습니다. **우리 논문에서 error propagation을 다룰 때 인용할 근거가 이 문단입니다.**
+
+## 5. 평가 지형 (§6)
+
+**주의 — 이전 정리를 정정합니다.** 서베이는 특정 benchmark 목록을 나열하지 않고 **7개 도메인으로 분류**합니다.
+
+| # | 도메인 |
 |---|---|
-| Prompt-Based | Set-of-Mark Prompting, Chain-of-Spot |
-| SFT-Based | LLaVA-Plus, CogCoM |
-| RL-Based | **OpenThinkIMG**(0단계 B-5), VisionReasoner |
+| 1 | Mathematical Reasoning (기하 문제가 핵심) |
+| 2 | STEM |
+| 3 | Perception Reasoning |
+| 4 | Code Generation |
+| 5 | Chart and Table Reasoning |
+| 6 | Real-world Applications |
+| 7 | Puzzles and Games |
 
-### Stage 2 — Programmatic Visual Manipulation
+> **회전·orientation을 다루는 도메인은 없습니다.** B-1 CodeVision의 문제 설정은 이 7개 어디에도 깔끔하게 안 들어갑니다 — 굳이 넣으면 Perception Reasoning인데, 서베이가 상정한 건 "시각적 착시 판별" 류입니다.
 
-모델의 역할: **Visual Programmer**. 고정된 tool 목록 대신 **실행 가능한 코드를 생성**해 임의의 분석을 조합합니다. 얻는 것은 compositional flexibility와 interpretability.
+## 6. ★ Future Directions (§8) — 우리 주장과 겹치는지 확인
 
-| 학습 방식 | 대표 방법 |
-|---|---|
-| Prompt-Based | ViperGPT, **Visual Sketchpad**(0단계 B-5) |
-| SFT-Based | **Visual Program Distillation**(0단계 C-2), ProVision |
-| RL-Based | Visual Agentic Reinforcement Fine-Tuning |
+**이전 정리에서 "반드시 확인" 항목으로 남겨뒀던 절입니다. 확인 결과 겹치는 게 있습니다.**
 
-### Stage 3 — Intrinsic Visual Imagination
+### §8.1 Computational and Cognitive Efficiency
 
-모델의 역할: **Visual Thinker**. 외부 도구 없이 **내부에서 mental imagery를 생성**해 그 자체를 추론 단계로 씁니다. 사람이 눈을 감고 도형을 회전시켜 보는 것에 해당합니다.
+- "cognitive efficiency" = **과제에 맞는 만큼만 노력을 쓰는 것**. 사람이 암산할지 종이를 꺼낼지 정하는 것에 비유
+- **"불필요한 visual step에 페널티를 주는 reward system으로 학습시킬 수 있다"** ← B-1의 Inappropriate Tool Use Penalty가 정확히 이것
+- "느린 외부 tool 대신 **작은 내장 모듈**을 두고 latent space에서 동작하게" ← 방향은 다르지만 **모듈 분리 발상 자체는 이미 제시됨** (단, *내장* 모듈이지 앞단 분리가 아님)
 
-| 학습 방식 | 대표 방법 |
-|---|---|
-| SFT-Based | Chameleon, Show-o, BLIP3-o (interleaved text-image 데이터 학습) |
-| RL-Based | T2I-R1, Visual Planning |
+### §8.3 Novel Benchmarks
 
-## 3. 이 패러다임이 연다는 3가지 능력
+- 현재 benchmark는 최종 답만 검사 → **"올바른 이유 없이 정답"(shortcut)** 이 가능하다는 지적
+- **necessity test 방법론 제안:** *중간 시각 단계를 제거하고도 정답에 도달하는지 보라*
 
-- **Dynamic Perceptual Exploration** — 필요할 때 다시 보기
-- **Structured Visual Reasoning** — 시각 정보 위에 구조를 얹어 추론
-- **Goal-Oriented Generative Planning** — 목표에 맞춰 이미지를 생성하며 계획
+> 이건 방법론으로 바로 차용할 수 있습니다. "앞단 보정을 껐을 때 성능이 떨어지지 않으면 그 보정은 불필요했다"로 옮기면 됩니다.
 
-## 4. 평가 지형
+### §8.5.1 Thinking with Images v.s. Agentic Frameworks ★★
 
-서베이가 짚는 benchmark들: **m&m's, CoMT, ChartMuseum, TIR-Bench** 등. 공통점은 정적 perception이 아니라 **multi-step·constructive reasoning**을 측정하려 한다는 것.
+positioning에 직접 쓸 수 있는 절입니다. 저자들이 둘을 네 축으로 구분합니다.
 
-> 0단계 A그룹이 쓰는 평가(CIFAR10, ImageNet 회전 정확도)와 **완전히 다른 세계**입니다. 우리 논문이 두 계열을 잇겠다면 **어느 쪽 평가 프로토콜을 쓸 것인지**가 실질적 결정 사항이 됩니다.
+| 축 | Thinking with Images | Agent Framework |
+|---|---|---|
+| 목적 | **Deliberation** — 추론의 fidelity·depth | **Execution** — 외부 과제 완수 |
+| vision의 역할 | **cognitive workspace** (mental sketchpad) | **환경 지각**의 매체 |
+| 중간 단계 | **cognitive artifacts** (내적 구성물) | **executable instructions** (API 호출 등) |
+| 관계 | \= **cognitive engine** | \= 그 engine이 들어가는 **machine** |
+
+결론: *"Thinking with Images를 agent라는 기계 안의 인지 엔진으로 보라."* 배타적이 아니라 상보적이라는 것.
+
+### §8.5.2 Blueprint for a Unified Visual Thinker ★★★ — 우리 abstain 아이디어와 겹칩니다
+
+Figure 5의 청사진입니다. **핵심 부품이 Metacognitive Controller**입니다.
+
+```
+입력 → [Metacognitive Controller]  ── "Thinking with Images가 필요한가?"
+                 │
+      필요없음 ──┴──> Direct Encode → Textual Inference → 답
+      필요함   ────> Visual Cognitive Workspace (Stage 1/2/3)
+                        ↑ 반복 정제·피드백 루프 ↓
+                     Action & Output
+```
+
+저자들의 원칙: *"항상 가장 복잡한 추론에 기대는 모델이 아니라, **과제에 맞는 인지 도구를 지능적으로 고르는 동적 시스템**"*. 마지막 문장은 **"진짜 visual thinker의 열쇠는 상상하는 능력이 아니라 가장 효과적·효율적인 경로를 고르는 meta-reasoning"**입니다.
+
+> **이것이 0단계에서 "빈 자리"로 꼽았던 회전 abstain 정책과 개념적으로 겹칩니다.** 서베이가 이미 "쓸지 말지 판단하는 controller"를 청사진으로 제시했고, §8.1은 "불필요한 시각 단계에 페널티"를 제안했으며, B-1은 그걸 penalty로 부분 구현했습니다.
+>
+> **→ abstain을 novelty로 주장하면 안 됩니다.** 남은 자리는 훨씬 좁습니다: ① **회전에 특화된** 판정(방향이 정의되지 않는 이미지 식별) ② 그 판정 능력 **자체를 평가하는 프로토콜** — 서베이도 B-1도 이건 안 했습니다.
+>
+> **다만 결정적 차이가 하나 있습니다.** 서베이의 Metacognitive Controller는 **통합 모델 내부의 부품**입니다. 우리 구상은 **본 모델 외부의 독립 모듈**이고 본 모델은 freeze입니다. §8.5.1의 어휘를 빌리면 — 서베이는 engine 내부를 설계하고, 우리는 **engine을 갈아끼울 수 있는 machine**을 설계하는 것입니다.
 
 ---
 
-## 5. 우리 과제 관점 — taxonomy 위에 좌표 찍기 ★
+## 7. ★ 회전은 이 서베이에 사실상 없습니다 (검증 완료)
 
-이 서베이의 진짜 쓸모는 **선행 연구와 우리 아이디어의 좌표를 같은 지도 위에 찍을 수 있다**는 것입니다.
+57쪽 전문 검색 결과입니다.
 
-### 0단계 논문들의 좌표
-
-| 0단계 항목 | 서베이상 위치 |
+| 단어 | 등장 횟수 |
 |---|---|
-| B-5 OpenThinkIMG | Stage 1 × RL |
-| B-5 Visual Sketchpad | Stage 2 × Prompt |
-| B-3 DeepEyes | Stage 1 × RL |
-| B-2 Thyme | Stage 2 × RL |
-| **B-1 CodeVision** | **Stage 2 × RL** |
-| C-2 Visual Program Distillation | Stage 2 × SFT |
-| **A그룹 전체 (canonicalization)** | **taxonomy에 없음** |
+| `rotate` / `rotation` | **1회** |
+| `orientation` | **0회** |
+| `canonical` | **0회** |
+| `equivariance` | **0회** |
 
-### 여기서 나오는 결론 3가지
+유일한 1회는 §4.3 Categories of Composable Operations에서 **tool 목록의 예시**로 나옵니다:
 
-**① CodeVision의 novelty는 생각보다 좁습니다.**
+> *"action-oriented operations such as geometric transformations (**e.g., rotate, resize**) and, critically, drawing functions..."*
 
-Stage 2 × RL 칸에는 이미 **Thyme**과 **Visual Agentic RL Fine-Tuning**이 있습니다. CodeVision이 새로 연 단계가 아니에요. 그럼 CodeVision의 실제 기여는 무엇인가 — **"회전이라는, tool이 진짜 필요한 문제를 찾아낸 것"**과 **"dense process reward 설계"**입니다. 방법론적 패러다임 자체는 기존 칸입니다.
+**즉 회전은 "할 수 있는 연산 중 하나"로 스쳐 지나갈 뿐, 문제로 취급되지 않습니다.** 서베이가 강조하는 건 오히려 **drawing functions**(보조선 긋기)예요 — "critically"라는 부사가 거기 붙어 있습니다.
 
-→ 우리 논문에서 CodeVision을 다룰 때 이 프레임을 쓰면 정확합니다. "CodeVision은 Stage 2 패러다임을 orientation task에 적용한 사례"라고 위치시키는 것.
-
-**② A그룹은 이 지도에 없습니다.**
-
-서베이는 canonicalization·equivariance 계열을 전혀 다루지 않습니다. RotNet도 EquiAdapt도 없어요. **회전이라는 동일한 문제를 두 학문 계열이 서로 모른 채 다루고 있습니다.** 이 단절을 명시적으로 지적하고 다리를 놓는 것 자체가 기여가 됩니다.
-
-**③ 가장 중요 — 우리 구상은 이 taxonomy의 축 위에 없습니다.** ★
-
-Stage 1→2→3은 전부 **"본 모델의 cognitive autonomy"**로 매겨진 축입니다. 셋 다 **본 모델이 스스로 한다**를 전제해요.
-
-그런데 사용자 구상은 **본 모델을 freeze하고 별도의 앞단 모델이 tool을 부르는** 구조입니다. 앞단 모델은 자율적으로 추론하고 tool을 부르지만, 그건 **본 모델의 autonomy가 아닙니다.** 본 모델은 여전히 Stage 0(그냥 받아서 답함)에 머물러 있어요.
-
-즉 이 설계는 서베이의 축이 **측정하지 못하는 종류의 것**입니다. 새 단계가 아니라 **직교하는 축**입니다:
-
-```
-서베이의 축:  본 모델이 얼마나 스스로 하는가  (Stage 1 → 2 → 3)
-우리의 축:    그 능력이 어디에 위치하는가     (본 모델 내부 ↔ 외부 모듈)
-```
-
-**이게 novelty를 주장하는 가장 깔끔한 프레임입니다.** "우리는 Stage 4다"가 아니라 "우리는 이 축과 직교하는 설계 차원을 제안한다"가 훨씬 방어하기 좋습니다. 그리고 그 차원에서 나오는 실용적 이득이 §B-1 §9에 정리해둔 것들입니다 — closed-source 본 모델 적용 가능, 본 모델 교체 가능, 학습 비용 절감.
+**함의 두 가지:**
+1. 2025년 7월 시점에 **이 분야는 회전을 문제로 인식하지 못했습니다.** 5개월 뒤 B-1이 그걸 중심 소재로 끌어올린 겁니다. B-1의 소재 발굴이 실제로 새로웠다는 증거.
+2. **canonicalization 계열(0단계 A그룹)은 단어 하나도 등장하지 않습니다.** 두 학문 계열의 단절이 정량적으로 확인됐습니다. 우리 논문이 다리를 놓는다는 주장의 근거로 쓸 수 있습니다.
 
 ---
 
-## 6. 확인 필요
+## 8. 우리 과제 관점 — 정리
 
-이 항목은 **원문 PDF를 못 읽었습니다.** (작업 환경에서 arxiv.org·huggingface.co·emergentmind.com 등이 egress 차단.) 위 내용은 **동반 GitHub 저장소(Awesome_Think_With_Images)의 구조**와 초록·검색 요약을 종합한 것입니다.
+### taxonomy 위 좌표
 
-taxonomy 골격(3 stage × Prompt/SFT/RL, 각 칸의 대표 방법)은 동반 저장소가 논문 구조를 그대로 반영하므로 신뢰도가 높지만, 아래는 원문 확인이 필요합니다.
+| 0단계 항목 | 위치 |
+|---|---|
+| B-5 OpenThinkIMG | Stage 1 |
+| B-3 DeepEyes | Stage 1 |
+| B-5 Visual Sketchpad | Stage 2 |
+| B-2 Thyme | Stage 2 |
+| **B-1 CodeVision** | **Stage 2** |
+| C-2 Visual Program Distillation | Stage 2 |
+| **A그룹 전체 (canonicalization)** | **언급 자체가 없음 (0회)** |
 
-- [ ] Stage별 정의의 정확한 원문 표현 (인용할 거라면 필수)
-- [ ] 저자 전체 목록
-- [ ] **Challenges / Future Frontiers 절의 구체 내용** — 우리 논문의 "빈 자리" 주장과 겹치는지 반드시 확인. 서베이가 이미 지적한 걸 우리가 novelty로 주장하면 안 됨
-- [ ] 평가 benchmark 절의 상세 (m&m's, CoMT, ChartMuseum, TIR-Bench 각각이 무엇을 재는지)
-- [ ] A그룹(canonicalization)이 정말 한 번도 언급되지 않는지
+### 결론 4가지
 
-> **CodeVision 때처럼 PDF를 올려주시면** 이 항목도 원문 기준으로 전면 재작성하겠습니다. 특히 **Challenges 절**은 우리 논문의 positioning에 직접 영향을 주므로 확인이 필요합니다.
+**① B-1의 패러다임은 새롭지 않지만 소재는 새롭습니다.** Stage 2는 이미 정의돼 있었고 Thyme도 거기 있습니다. 그러나 **회전은 서베이가 문제로 보지 않았습니다.** B-1의 기여는 소재 발굴 + reward 설계입니다.
+
+**② abstain 아이디어는 선점됐습니다 (부분적으로).** §8.5.2 Metacognitive Controller + §8.1 penalty 제안. 남은 건 회전 특화 판정과 그 평가 프로토콜.
+
+**③ error propagation은 서베이가 직접 언어화해줬습니다.** §2.4 Challenge 2(Information Density)가 앞단 방식의 최대 리스크입니다. 우리 논문이 이걸 **정면으로 다루면** 오히려 강점이 됩니다 — "우리는 이 위험을 알고 측정했다".
+
+**④ 직교 축 프레임은 여전히 유효하고, 오히려 강화됐습니다.** 서베이의 축은 본 모델의 cognitive autonomy입니다. §8.5.1이 "cognitive engine vs machine"이라는 어휘까지 제공하므로, **"우리는 engine을 교체 가능하게 만드는 machine 층위의 기여"**라고 쓸 수 있습니다.
+
+---
+
+## 9. 원문 대조 상태
+
+**arXiv 2506.23918v3 (57쪽) 전문 대조 완료.** 초록·§1~§9·Figure 1·2·5 캡션·전문 단어 검색까지 확인했습니다.
+
+이전 버전(동반 GitHub 저장소 기반)에서 **정정된 것 2가지:**
+- ❌ ~~benchmark로 m&m's, CoMT, ChartMuseum, TIR-Bench를 든다~~ → 실제로는 **7개 도메인 분류**. 이 이름들은 저장소에만 있고 논문엔 ChartMuseum만 1회
+- ❌ ~~Stage 1→2→3이 지향해야 할 방향으로 제시된다~~ → §2.2에서 **선형 진보가 아니라고 명시**. 단 초록·Figure 1은 위계를 시사해 내부 긴장 있음
+
+아직 안 읽은 부분: §3(Stage 1 상세), §5(Stage 3 상세), §7(Applications) 각 절의 개별 방법 소개. 필요해지면 요청 주세요.
 
 ---
 
