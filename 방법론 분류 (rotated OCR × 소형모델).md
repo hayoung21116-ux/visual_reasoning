@@ -1,0 +1,177 @@
+## Visual Tool Reasoning 방법론 — rotated OCR × ≤3B 적합성 분류
+
+> 전제: **① 과제는 rotated OCR ② 학습 대상은 3B 이하 소형 모델 ③ 본 모델 feature 접근 가능**
+> 원문 미확인(초록·검색 요약 기반). 채택 전 대조 필요.
+
+---
+
+## 0. 결론 먼저
+
+1. **자유 Python 코드 생성 계열(Thyme·PyVision·CodeVision)은 3B에서 권장하지 않습니다.** 근거는 §2.
+2. **애초에 회전에는 코드 유연성이 필요 없습니다.** action space가 `{0°,90°,180°,270°}`(+flip) 4~6개예요. Python 인터프리터를 붙일 이유가 없습니다.
+3. **먼저 읽어야 할 논문이 리스트에 없습니다 — `Seeing Straight`(§1).** 우리 스코프를 거의 그대로 다루고, 이미 98% 정확도를 냈습니다.
+4. **스코프를 OCR로 좁히면 문제가 쉬워집니다.** 좋은 소식이자, novelty 논거를 다시 짜야 한다는 뜻입니다(§4).
+
+---
+
+## 1. ★ 리스트에 없지만 가장 중요한 논문
+
+### Seeing Straight: Document Orientation Detection for Efficient OCR (arXiv 2511.04161)
+
+**우리 스코프를 거의 그대로 다룬 선행 연구입니다.**
+
+| 항목 | 내용 |
+|---|---|
+| 구조 | **앞단 rotation 분류기 → OCR 모델** (얼린 다운스트림) |
+| 앞단 | **Phi-3.5-Vision의 vision encoder** + dynamic image cropping, **12-class 회전 분류**로 fine-tune |
+| 성능 | 회전 식별 **98% / 96%** |
+| OCR 개선 | closed-source **최대 20%**, open-weights **최대 4배** |
+| 벤치마크 | **OCR-Rotation-Bench (ORB)** — 1,863장. ORB-En + **ORB-Indic**(11개 인도계 저자원 언어) |
+
+**이게 뜻하는 바를 정직하게 말씀드리면:**
+
+- ✅ **자산:** 우리 구조(앞단 + 얼린 본 모델)가 rotated OCR에서 실제로 큰 효과가 있다는 걸 이미 증명해줍니다. 그리고 **ORB가 §6에서 찾던 다운스트림 평가셋 빈틈을 정확히 메웁니다.**
+- ⚠️ **위협:** *"문서 회전을 앞단에서 고쳐 OCR을 살린다"* 는 아이디어 자체는 **이미 나왔고, 98%로 거의 풀렸습니다.** 그것도 **소형 모델의 vision encoder에 분류 헤드**를 붙인, 아주 단순한 방법으로요.
+
+**→ 그래서 우리가 답해야 할 질문이 바뀝니다:** *"앞단을 붙일까?"*가 아니라 **"분류기로 98%가 나오는데 왜 reasoning 모델이 필요한가?"**입니다. §4에 답 후보를 정리했습니다.
+
+> 참고로 이 논문은 A그룹(canonicalization) 계열과 사실상 같은 구조인데, **A-4(AMR)와 마찬가지로 본 모델의 vision encoder feature를 재활용**합니다. 선생님이 feature 접근이 가능하다고 하셨으니 이 설계를 그대로 따라갈 수 있습니다.
+
+---
+
+## 2. 3B 제약이 만드는 분류 기준
+
+문헌에서 확인된 소형 모델의 능력 경계입니다.
+
+- 2B 미만 SLM도 **단일 턴 벤치마크(GSM8K·MMLU)에서는 대형과 비슷**하지만, **tool 호출·장기 계획·에러 복구의 핵심인 다단계 추론에서 크게 뒤집니다.**
+- 반면 **구조화된 tool calling**(JSON schema 강제, guided decoding, validator-first)을 쓰면 **격차가 상당히 메워집니다.**
+- **open-ended long-horizon**은 8B·30B에서도 어렵습니다.
+
+여기에 우리가 직접 확인한 증거를 더하면:
+
+> **CodeVision(7B) Figure 16** — SFT cold start 없이 RL만 돌리자 **tool turn이 step 30에서 0으로 붕괴**하고 끝까지 0이었습니다. 저자 설명: *"code generation의 방대하고 비구조적인 action space 때문에 pure RL exploration으로는 유용한 정책을 못 찾는다."* **7B에서 이랬습니다. 3B는 더 심할 수밖에 없습니다.**
+
+**→ 분류 기준 3가지**
+
+| 기준 | 3B 친화 | 3B 위험 |
+|---|---|---|
+| **출력 형태** | 고정 tool + 구조화된 인자 | **자유 코드 생성** |
+| **호출 길이** | 1~2턴 | 수십 턴 long-horizon |
+| **학습** | SFT cold start 필수 | RL-only 부트스트랩 |
+
+---
+
+## 3. 분류 결과
+
+### ✅ 적합 — 3B에서 바로 시도 가능
+
+| 방법론 | 이유 | 우리 과제 적용 |
+|---|---|---|
+| **Chain-of-Focus** | 고정 crop/zoom, SFT→RL. **가장 단순한 구조** | tool만 rotate로 교체하면 **최소 baseline** |
+| **OpenThinkIMG** | 표준화된 tool interface + trajectory 생성 + RL 환경 | **구현 인프라**로 활용 |
+| **Beacon** | **tool-induced gain**으로 학습 샘플을 라벨링 | ★ **우리와 가장 잘 맞는 아이디어** — 아래 참고 |
+| **Act Wisely / Metis** | HDPO로 accuracy 채널과 efficiency 채널을 **분리** 최적화 | abstain 설계에 참고 |
+
+**Beacon이 특히 잘 맞는 이유:** "이 샘플에 tool이 실제로 도움이 됐는가"를 teacher 모델(Qwen2.5-VL-72B)의 with/without 성능 차이로 라벨링합니다. **rotated OCR에서는 이걸 teacher 없이 직접 잴 수 있습니다** — 회전 보정 전후의 OCR 정확도 차이가 곧 gain이니까요. 본 모델 feature 접근까지 있으니 logit 수준에서도 측정 가능합니다.
+
+*(0단계 B-4 AdaTooler-V의 Tool Benefit Score와 같은 메커니즘입니다. 서로 독립적으로 같은 결론에 도달한 셈이에요.)*
+
+**Metis 주의점:** tool 호출을 **98% → 2%로 줄이면서** 정확도를 올린 논문인데, 이건 **"대부분의 문제에 tool이 불필요한"** 세팅입니다. **우리는 반대예요** — rotated OCR에서는 거의 항상 회전이 필요합니다. Beacon이 Metis를 비판한 지점도 그것입니다(*"tool 사용을 억제하는 방향이라 과제 의존적 적응성이 없다"*). **Metis는 전체 정책이 아니라 abstain 부분에만 참고하세요.**
+
+### ⚠️ 조건부 — 3B에서 위험, 보완 필요
+
+| 방법론 | 위험 | 대응 |
+|---|---|---|
+| **DeepEyes** | "SFT 없이 RL만으로 emergence"를 주장하지만 **7B에서 검증**됨. 3B 재현 보장 없음 | **SFT cold start를 반드시 붙일 것** |
+| **Pixel Reasoner** | 방법보다 **문제의식이 중요** — RL이 text-only local optimum으로 붕괴하는 문제. **3B에서 더 심각** | curiosity reward 개념만 차용 |
+| **Visual Sketchpad** | training-free지만 **강한 base 모델 전제**. 3B에서 sketch 품질 기대 어려움 | 개념만 참고 |
+
+### ❌ 부적합 — 3B에서 비권장
+
+| 방법론 | 이유 |
+|---|---|
+| **Thyme · PyVision** | **자유 Python 코드 생성.** §2의 근거로 3B에서 붕괴 위험이 큽니다. 게다가 **회전은 코드 유연성이 필요 없는 4~6지선다**예요 — 유연성의 대가만 치르고 이득이 없습니다 |
+| **Mini-o3** | 수십 step long-horizon. 문헌 결론상 8B·30B에서도 어려운 영역 |
+| **VC-Tooler** | multi-tool composition · unseen tool 일반화가 목표. **우리 tool은 1~2개**라 풀 문제 자체가 없음 |
+
+### 🤔 참고만
+
+| 방법론 | 메모 |
+|---|---|
+| **FaithEyes** | judge가 tool output의 유용성을 평가. **우리는 judge가 필요 없습니다** — OCR 결과 자체가 검증 신호니까요. 개념만 |
+| **TextCall** | "tool 결과 이미지 없이 tool-call만으로 gain이 나는가"를 분석. **회전에는 성립할 수 없습니다** — 돌린 이미지를 다시 봐야 글자를 읽으니까요. 역으로 **"우리 과제는 tool result가 반드시 필요한 케이스"라는 근거**로 인용 가능 |
+
+---
+
+## 4. 스코프를 OCR로 좁힐 때의 득실 ★
+
+**반드시 인지하고 가셔야 할 트레이드오프입니다.**
+
+### 얻는 것
+
+- **문제가 쉬워집니다.** 텍스트는 읽기 방향이 있어서 **90°와 270°가 명확히 구분됩니다.** 자연 장면에서 어려웠던 부분이 사라져요.
+- **검증 신호가 공짜로 생깁니다.** 회전을 제대로 맞히면 OCR 결과가 급격히 좋아집니다. reward·평가 모두 여기서 나옵니다.
+- **실용적 가치가 명확합니다.** 스캔·촬영 문서의 방향 보정은 실제 파이프라인의 표준 전처리 단계입니다.
+
+### 잃는 것 — 이게 중요합니다
+
+**RotBench의 "90°/270°를 구분하는 모델이 하나도 없다"는 논거를 더 이상 쓸 수 없습니다.** 그 문제는 **방향 단서가 약한 자연 이미지**에서 발생합니다. 텍스트가 있으면 읽기 방향이 곧 정답이라 애초에 어렵지 않아요.
+
+즉 **스코프를 OCR로 좁히는 것은 가장 어려운 케이스를 피해 가는 선택**입니다. 나쁜 선택이 아니라 **정당한 범위 설정**이지만, *"아무도 90°/270°를 못 구분한다"*를 motivation으로 쓰면서 *"우리는 문서 OCR만 다룬다"*고 하면 **논리가 어긋납니다.** 심사에서 바로 지적받을 지점입니다.
+
+### 그래서 motivation을 어디서 가져올 것인가
+
+RotBench 대신 이쪽이 맞습니다:
+
+- **Seeing Straight의 수치** — 회전만으로 open-weights OCR 성능이 **1/4 토막**이 납니다. 실용적 심각성이 여기 있습니다.
+- **CodeVision Table 1** — OCRBench에서 Qwen2.5-VL-7B가 Rot180에서 86.4 → **58.0**으로 떨어집니다.
+- **VLM-RobustBench** — "의미적으로 강하지만 공간적으로 취약하다".
+
+### 그리고 "왜 분류기가 아니라 reasoning인가"에 답해야 합니다
+
+Seeing Straight이 **분류 헤드만으로 98%**를 냈으니, reasoning 모델을 쓰는 이유를 따로 대야 합니다. 후보:
+
+1. **abstain** — 12-class 분류기는 "판단 보류"를 표현할 수 없습니다. 방향이 애매한 문서(도표만 있는 페이지, 회전 대칭 양식)에서 강제로 한 클래스를 고릅니다.
+2. **설명 가능성** — 왜 그 각도로 판단했는지 근거를 남길 수 있습니다. FaithEyes·TreeBench의 문제의식과 연결됩니다.
+3. **일반화** — 분류기는 학습 도메인(문서)에 갇힙니다. reasoning 모델은 간판·손글씨·장면 텍스트로 넓히기 쉽습니다. **ORB가 문서 중심이라는 점이 곧 빈틈입니다.**
+4. **다중 tool** — 회전 + crop이 함께 필요한 경우(작은 글씨가 기울어져 있는 경우). 분류기는 회전밖에 못 합니다.
+
+**3번과 4번이 가장 방어하기 좋아 보입니다.** 1번은 매력적이지만 §6-2에서 봤듯 이미 부분 선점돼 있고, 2번은 "그래서 성능이 오르나?"라는 반문에 약합니다.
+
+---
+
+## 5. 권장 실험 경로
+
+원 자료의 5단계는 일반론으로는 타당하지만, **우리 제약(3B, 회전, OCR)에 맞춰 압축**했습니다.
+
+```
+[0] 진단 — 본 모델 vision encoder에 회전 정보가 있는가?  ← 먼저
+     └ feature probing. A-4/Seeing Straight의 전제가 우리 모델에서도 성립하는지
+
+[1] baseline 2종 비교
+     ├ (a) 분류 헤드         ← Seeing Straight 재현. 성능 상한 확인용
+     └ (b) 고정 tool + 추론   ← Chain-of-Focus / OpenThinkIMG 구조, rotate로 교체
+
+[2] SFT cold start           ← 3B에서는 선택이 아니라 필수 (CodeVision Fig 16)
+
+[3] RL — reward에 OCR 결과를 직접 사용
+     └ Beacon식 tool-induced gain = 회전 전후 OCR 정확도 차이
+
+[4] abstain — 방향이 애매한 문서를 섞어 평가
+     └ Metis의 decoupled 구조 참고
+```
+
+**[0]과 [1a]를 먼저 하시길 권합니다.** [1a]에서 분류기가 이미 95%+를 낸다면 reasoning 방식의 정당화가 §4의 3·4번으로 좁혀지고, 못 낸다면 그 자체가 우리 방식이 필요한 근거가 됩니다. **어느 쪽이 나와도 방향이 정해집니다.**
+
+**자유 코드 생성(Thyme/PyVision) 경로는 이 스코프에서 시도할 이유가 없습니다.**
+
+---
+
+## 참고
+
+- Seeing Straight: arxiv.org/abs/2511.04161
+- Act Wisely / Metis: arxiv.org/abs/2604.08545 · github.com/Accio-Lab/Metis
+- Beacon: arxiv.org/abs/2607.28595
+- 나머지는 원 자료의 References 참조
+
+*이 문서는 초록·검색 요약 기반이며 원문 대조 전입니다. 특히 Seeing Straight은 우리 과제와 가장 가까우므로 **원문 확보를 권합니다.***
