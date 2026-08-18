@@ -118,14 +118,34 @@
 
 **→ 아이디어 씨앗:** **o3는 이미 rotate를 툴로 갖고 있는데도 회전 판정에 실패합니다.** 즉 "툴이 있느냐"가 아니라 "언제 얼마나 돌릴지 판단할 수 있느냐"가 병목이라는 뜻이고, 이건 사용자 과제의 문제 정의를 날카롭게 해주는 관찰입니다.
 
-## B-6. Thinking with Images 서베이 (arXiv 2506.23918) / Agentic MLLM 서베이 (arXiv 2510.10991)
+## B-6. Thinking with Images for Multimodal Reasoning: Foundations, Methods, and Future Frontiers (arXiv 2506.23918) — **B그룹 전체의 지도**
 
-- **기존 문제점:** 이 분야가 반년 만에 폭증해서 전체 지형을 잡기 어렵다.
-- **핵심 아이디어:** "이미지에 대해 생각하기 → 조작된 이미지로 생각하기 → 생성된 이미지로 생각하기"로 계열을 정리한다.
+> **먼저 읽어야 할 논문.** B그룹(특히 B-1 CodeVision)의 아이디어는 이 서베이가 정리한 지형 위에 놓고 봐야 이해됩니다. CodeVision이 "우리는 code-as-tool이다"라고 말할 때, 그게 어느 칸을 차지하는 주장인지 알려주는 게 이 논문입니다.
+
+- **기존 문제점:** 기존 multimodal reasoning은 textual Chain-of-Thought에 기대는데, 이 text-centric 방식은 **vision을 정적인 초기 context로만 취급**한다. 그래서 풍부한 perceptual data와 이산적인 symbolic thought 사이에 **semantic gap**이 생긴다.
+- **핵심 아이디어:** vision을 passive input이 아니라 **동적이고 조작 가능한 cognitive workspace**로 승격시킨다. 그리고 이 계열 전체를 **cognitive autonomy가 커지는 3단계**로 정리한다.
+
+사람은 어려운 문제를 풀 때 머릿속으로만 생각하지 않습니다. 종이에 그림을 그리고, 화살표를 치고, 중요한 데 동그라미를 칩니다. 기존 MLLM은 이걸 못 했어요 — 이미지를 한 번 보고 말로 옮긴 다음에는, 그 말만 가지고 끝까지 추론했습니다. 처음에 놓친 건 영영 못 봅니다. 이 서베이가 정리하는 새 흐름은 **모델에게 "다시 보기"와 "그려보기"를 허용**하는 것입니다.
 
 <cite index="17-1">"Thinking about Images"는 정적인 그림에 대한 관찰을 말로 옮긴 뒤 답을 내지만 추론 중 시각 콘텐츠 자체는 바뀌지 않습니다. 반면 "Thinking with Images"는 그림을 능동적 외부 작업공간으로 승격시켜, 모델이 생성·크롭·강조·스케치·주석을 추론 체인의 토큰처럼 반복 삽입합니다.</cite>
 
-**→ 관련연구 절 골격용. 논문 자체보다 지형도 용도.**
+**3단계 분류 (cognitive autonomy 증가 순)**
+
+| Stage | 이름 | 모델의 역할 | 무엇을 하나 |
+|---|---|---|---|
+| **1** | Tool-Driven Visual Exploration | **Commander** | 외부 tool을 골라서 지시. 지능은 "어떤 tool을 쓸까"에서 나옴 |
+| **2** | Programmatic Visual Manipulation | **Visual Programmer** | 코드를 생성해 임의의 시각 연산을 조합 |
+| **3** | Intrinsic Visual Imagination | **Visual Thinker** | 외부 도구 없이 **머릿속에서 이미지를 생성**해 추론 단계로 삼음 |
+
+**→ 아이디어 씨앗 (3개):**
+
+1. **B-1 CodeVision은 Stage 2에 정확히 들어갑니다.** "code-as-tool"이 곧 Programmatic Visual Manipulation이고, RL로 학습시켰으니 Stage 2 × RL 칸입니다. **즉 CodeVision의 novelty는 "새 단계를 열었다"가 아니라 "이미 있던 Stage 2를 회전 문제에 잘 적용했다"입니다.** 이걸 알면 CodeVision을 과대평가하지 않게 됩니다.
+
+2. **A그룹(canonicalization)은 이 taxonomy 어디에도 없습니다.** 서베이가 다루는 건 전부 "본 모델이 스스로 하는" 계열이거든요. 회전이라는 같은 문제를 A그룹은 완전히 다른 언어(equivariance)로 다뤄왔는데, 두 계열이 서로를 모릅니다. **이 단절 자체가 우리 논문의 자리입니다.**
+
+3. **가장 중요한 것 — 이 taxonomy의 축은 "본 모델의 cognitive autonomy"입니다.** Stage 1→3은 전부 *본 모델이 얼마나 스스로 하느냐*로 매겨집니다. 그런데 **사용자 구상(본 모델 freeze + 별도 앞단 모델)은 이 축에 아예 안 올라갑니다.** 앞단 모델이 자율적으로 tool을 부르지만 그건 본 모델의 autonomy가 아니니까요. 서베이의 축이 못 담는 설계라는 것 — **이게 novelty를 주장하는 가장 깔끔한 프레임**이 될 수 있습니다.
+
+*(같은 용도의 보조 자료: Agentic MLLM 서베이 arXiv 2510.10991.)*
 
 ---
 
@@ -163,6 +183,7 @@ C-1의 원조 격입니다. 툴 파이프라인이 만들어낸 좋은 궤적을
 
 # 읽는 순서 제안
 
+0. **Thinking with Images 서베이 (B-6)** — **지도 먼저.** 아래 논문들이 각각 어느 칸에 있는지 알고 읽어야 함
 1. **CodeVision (B-1)** — 경쟁 논문. 여기서 뭐가 남았는지 봐야 방향이 잡힘
 2. **EquiAdapt (A-2)** — 앞단 모델 방식의 핵심 함정과 해법
 3. **DeepEyes (B-3)** — 앞단 모델 없이도 된다는 반론. 이걸 못 넘으면 novelty가 약해짐

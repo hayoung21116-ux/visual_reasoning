@@ -4,16 +4,154 @@
 > 0단계 파일: `논문 search (0단계).md`
 
 **표기 규칙**
-- 수치·설정은 **원문 PDF 대조 완료** 기준으로 적습니다. Figure는 페이지를 이미지로 렌더링해 직접 판독했습니다.
+- 항목마다 **원문 대조 여부를 맨 끝에 명시**합니다. 인용 전에 반드시 확인할 것.
+  - **B-1**: 원문 PDF 대조 완료 (Figure까지 렌더링해 판독)
+  - **B-6**: 원문 PDF 미확보 — 동반 GitHub 저장소·초록 기반
 - 그래프에서 눈으로 읽은 값은 `~`로 표기합니다 (본문에 수치가 없는 것들).
 - 기술 용어는 영어 원어 그대로 씁니다.
 
 **수록 현황**
+- [x] B-6. Thinking with Images 서베이 ← **지도. 먼저 읽을 것**
 - [x] B-1. Thinking with Programming Vision (CodeVision)
 - [ ] A-2. EquiAdapt
 - [ ] B-3. DeepEyes
 - [ ] B-4. AdaTooler-V
 - [ ] (필요할 때 추가)
+
+---
+
+# B-6. Thinking with Images for Multimodal Reasoning: Foundations, Methods, and Future Frontiers
+
+> **B-1보다 먼저 읽으세요.** 이건 서베이라서 실험이 없습니다. 그래서 이 항목의 1단계는 "실험 세팅·결과" 대신 **taxonomy를 정확히 파악하는 것**입니다. CodeVision이 자기 위치를 어디로 주장하는지가 여기서 결정됩니다.
+
+## 서지 정보
+
+| 항목 | 내용 |
+|---|---|
+| 제목 | *Thinking with Images for Multimodal Reasoning: Foundations, Methods, and Future Frontiers* |
+| 저자 | Zhaochen Su, Peng Xia, Hangyu Guo, Zhenhua Liu 외 |
+| 소속 | HKUST, UNC-Chapel Hill, Microsoft, CUHK, UIUC |
+| arXiv | 2506.23918 (2025-06, v2 존재) |
+| 자료 | github.com/zhaochen0110/Awesome_Think_With_Images (논문 목록 동반 저장소) |
+| 유형 | **Survey** — 실험·수치 없음 |
+
+## 1. 문제 제기: semantic gap
+
+서베이의 출발 진단입니다.
+
+- 기존 multimodal reasoning은 **textual Chain-of-Thought**에 의존
+- 이 text-centric 접근은 **vision을 정적인 초기 context로만 취급**
+- 결과: 풍부한 **perceptual data**와 이산적인 **symbolic thought** 사이에 **semantic gap**이 생김
+
+처방은 관점 전환입니다 — vision을 **passive input**에서 **dynamic, manipulable cognitive workspace**로 승격시킨다. 이미지가 "추론의 재료"가 아니라 "추론이 벌어지는 장소"가 되는 것.
+
+여기서 나오는 유명한 대비가 **thinking *about* images → thinking *with* images**입니다.
+
+## 2. 핵심 기여: 3단계 taxonomy
+
+서베이의 가장 중요한 산출물입니다. 축은 **cognitive autonomy(모델이 얼마나 스스로 하는가)**이고, 각 단계 안에서 다시 **학습 방식(Prompt / SFT / RL)**으로 나뉩니다.
+
+### Stage 1 — Tool-Driven Visual Exploration
+
+모델의 역할: **Commander(지휘관)**. 외부 시각 tool들을 골라 지시합니다. 지능이 "어떤 tool을 언제 쓸까"라는 **선택**에서 나옵니다.
+
+| 학습 방식 | 대표 방법 |
+|---|---|
+| Prompt-Based | Set-of-Mark Prompting, Chain-of-Spot |
+| SFT-Based | LLaVA-Plus, CogCoM |
+| RL-Based | **OpenThinkIMG**(0단계 B-5), VisionReasoner |
+
+### Stage 2 — Programmatic Visual Manipulation
+
+모델의 역할: **Visual Programmer**. 고정된 tool 목록 대신 **실행 가능한 코드를 생성**해 임의의 분석을 조합합니다. 얻는 것은 compositional flexibility와 interpretability.
+
+| 학습 방식 | 대표 방법 |
+|---|---|
+| Prompt-Based | ViperGPT, **Visual Sketchpad**(0단계 B-5) |
+| SFT-Based | **Visual Program Distillation**(0단계 C-2), ProVision |
+| RL-Based | Visual Agentic Reinforcement Fine-Tuning |
+
+### Stage 3 — Intrinsic Visual Imagination
+
+모델의 역할: **Visual Thinker**. 외부 도구 없이 **내부에서 mental imagery를 생성**해 그 자체를 추론 단계로 씁니다. 사람이 눈을 감고 도형을 회전시켜 보는 것에 해당합니다.
+
+| 학습 방식 | 대표 방법 |
+|---|---|
+| SFT-Based | Chameleon, Show-o, BLIP3-o (interleaved text-image 데이터 학습) |
+| RL-Based | T2I-R1, Visual Planning |
+
+## 3. 이 패러다임이 연다는 3가지 능력
+
+- **Dynamic Perceptual Exploration** — 필요할 때 다시 보기
+- **Structured Visual Reasoning** — 시각 정보 위에 구조를 얹어 추론
+- **Goal-Oriented Generative Planning** — 목표에 맞춰 이미지를 생성하며 계획
+
+## 4. 평가 지형
+
+서베이가 짚는 benchmark들: **m&m's, CoMT, ChartMuseum, TIR-Bench** 등. 공통점은 정적 perception이 아니라 **multi-step·constructive reasoning**을 측정하려 한다는 것.
+
+> 0단계 A그룹이 쓰는 평가(CIFAR10, ImageNet 회전 정확도)와 **완전히 다른 세계**입니다. 우리 논문이 두 계열을 잇겠다면 **어느 쪽 평가 프로토콜을 쓸 것인지**가 실질적 결정 사항이 됩니다.
+
+---
+
+## 5. 우리 과제 관점 — taxonomy 위에 좌표 찍기 ★
+
+이 서베이의 진짜 쓸모는 **선행 연구와 우리 아이디어의 좌표를 같은 지도 위에 찍을 수 있다**는 것입니다.
+
+### 0단계 논문들의 좌표
+
+| 0단계 항목 | 서베이상 위치 |
+|---|---|
+| B-5 OpenThinkIMG | Stage 1 × RL |
+| B-5 Visual Sketchpad | Stage 2 × Prompt |
+| B-3 DeepEyes | Stage 1 × RL |
+| B-2 Thyme | Stage 2 × RL |
+| **B-1 CodeVision** | **Stage 2 × RL** |
+| C-2 Visual Program Distillation | Stage 2 × SFT |
+| **A그룹 전체 (canonicalization)** | **taxonomy에 없음** |
+
+### 여기서 나오는 결론 3가지
+
+**① CodeVision의 novelty는 생각보다 좁습니다.**
+
+Stage 2 × RL 칸에는 이미 **Thyme**과 **Visual Agentic RL Fine-Tuning**이 있습니다. CodeVision이 새로 연 단계가 아니에요. 그럼 CodeVision의 실제 기여는 무엇인가 — **"회전이라는, tool이 진짜 필요한 문제를 찾아낸 것"**과 **"dense process reward 설계"**입니다. 방법론적 패러다임 자체는 기존 칸입니다.
+
+→ 우리 논문에서 CodeVision을 다룰 때 이 프레임을 쓰면 정확합니다. "CodeVision은 Stage 2 패러다임을 orientation task에 적용한 사례"라고 위치시키는 것.
+
+**② A그룹은 이 지도에 없습니다.**
+
+서베이는 canonicalization·equivariance 계열을 전혀 다루지 않습니다. RotNet도 EquiAdapt도 없어요. **회전이라는 동일한 문제를 두 학문 계열이 서로 모른 채 다루고 있습니다.** 이 단절을 명시적으로 지적하고 다리를 놓는 것 자체가 기여가 됩니다.
+
+**③ 가장 중요 — 우리 구상은 이 taxonomy의 축 위에 없습니다.** ★
+
+Stage 1→2→3은 전부 **"본 모델의 cognitive autonomy"**로 매겨진 축입니다. 셋 다 **본 모델이 스스로 한다**를 전제해요.
+
+그런데 사용자 구상은 **본 모델을 freeze하고 별도의 앞단 모델이 tool을 부르는** 구조입니다. 앞단 모델은 자율적으로 추론하고 tool을 부르지만, 그건 **본 모델의 autonomy가 아닙니다.** 본 모델은 여전히 Stage 0(그냥 받아서 답함)에 머물러 있어요.
+
+즉 이 설계는 서베이의 축이 **측정하지 못하는 종류의 것**입니다. 새 단계가 아니라 **직교하는 축**입니다:
+
+```
+서베이의 축:  본 모델이 얼마나 스스로 하는가  (Stage 1 → 2 → 3)
+우리의 축:    그 능력이 어디에 위치하는가     (본 모델 내부 ↔ 외부 모듈)
+```
+
+**이게 novelty를 주장하는 가장 깔끔한 프레임입니다.** "우리는 Stage 4다"가 아니라 "우리는 이 축과 직교하는 설계 차원을 제안한다"가 훨씬 방어하기 좋습니다. 그리고 그 차원에서 나오는 실용적 이득이 §B-1 §9에 정리해둔 것들입니다 — closed-source 본 모델 적용 가능, 본 모델 교체 가능, 학습 비용 절감.
+
+---
+
+## 6. 확인 필요
+
+이 항목은 **원문 PDF를 못 읽었습니다.** (작업 환경에서 arxiv.org·huggingface.co·emergentmind.com 등이 egress 차단.) 위 내용은 **동반 GitHub 저장소(Awesome_Think_With_Images)의 구조**와 초록·검색 요약을 종합한 것입니다.
+
+taxonomy 골격(3 stage × Prompt/SFT/RL, 각 칸의 대표 방법)은 동반 저장소가 논문 구조를 그대로 반영하므로 신뢰도가 높지만, 아래는 원문 확인이 필요합니다.
+
+- [ ] Stage별 정의의 정확한 원문 표현 (인용할 거라면 필수)
+- [ ] 저자 전체 목록
+- [ ] **Challenges / Future Frontiers 절의 구체 내용** — 우리 논문의 "빈 자리" 주장과 겹치는지 반드시 확인. 서베이가 이미 지적한 걸 우리가 novelty로 주장하면 안 됨
+- [ ] 평가 benchmark 절의 상세 (m&m's, CoMT, ChartMuseum, TIR-Bench 각각이 무엇을 재는지)
+- [ ] A그룹(canonicalization)이 정말 한 번도 언급되지 않는지
+
+> **CodeVision 때처럼 PDF를 올려주시면** 이 항목도 원문 기준으로 전면 재작성하겠습니다. 특히 **Challenges 절**은 우리 논문의 positioning에 직접 영향을 주므로 확인이 필요합니다.
 
 ---
 
