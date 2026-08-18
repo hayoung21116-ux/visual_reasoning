@@ -1,20 +1,12 @@
 ## Visual Tool Reasoning 방법론 — rotated OCR × ≤3B 적합성 분류
 
-> 전제: **① 과제는 rotated OCR ② 학습 대상은 3B 이하 소형 모델 ③ 본 모델 feature 접근 가능**
-> 원문 미확인(초록·검색 요약 기반). 채택 전 대조 필요.
+> **과제 전제:** ① 회전된 문서의 OCR을 살리는 것 ② 학습 대상은 **3B 이하 소형 모델** ③ 얼린 본 모델의 **내부 feature 접근 가능**
+>
+> visual tool reasoning 계열 방법론들이 이 조건에서 쓸 만한지 판정합니다. 원문 미확인(초록·검색 요약 기반)이므로 채택 전 대조가 필요합니다.
 
 ---
 
-## 0. 결론 먼저
-
-1. **자유 Python 코드 생성 계열(Thyme·PyVision·CodeVision)은 3B에서 권장하지 않습니다.** 근거는 §2.
-2. **애초에 회전에는 코드 유연성이 필요 없습니다.** action space가 `{0°,90°,180°,270°}`(+flip) 4~6개예요. Python 인터프리터를 붙일 이유가 없습니다.
-3. **가장 먼저 읽어야 할 논문은 추천받은 목록 밖에 있었습니다 — `Seeing Straight`(§1).** 우리 스코프를 거의 그대로 다루고, 이미 98% 정확도를 냈습니다. *(§3 분류에는 ✅ 적합으로 포함해뒀습니다.)*
-4. **스코프를 OCR로 좁히면 문제가 쉬워집니다.** 좋은 소식이자, novelty 논거를 다시 짜야 한다는 뜻입니다(§4).
-
----
-
-## 1. ★ 추천 목록 밖에서 찾은, 가장 중요한 논문
+## 1. ★ 가장 중요한 논문
 
 ### Seeing Straight: Document Orientation Detection for Efficient OCR (arXiv 2511.04161)
 
@@ -28,14 +20,14 @@
 | OCR 개선 | closed-source **최대 20%**, open-weights **최대 4배** |
 | 벤치마크 | **OCR-Rotation-Bench (ORB)** — 1,863장. ORB-En + **ORB-Indic**(11개 인도계 저자원 언어) |
 
-**이게 뜻하는 바를 정직하게 말씀드리면:**
+**이 논문의 두 얼굴:**
 
-- ✅ **자산:** 우리 구조(앞단 + 얼린 본 모델)가 rotated OCR에서 실제로 큰 효과가 있다는 걸 이미 증명해줍니다. 그리고 **ORB가 §6에서 찾던 다운스트림 평가셋 빈틈을 정확히 메웁니다.**
+- ✅ **자산:** 우리 구조(앞단 + 얼린 본 모델)가 rotated OCR에서 실제로 큰 효과가 있다는 걸 이미 증명해줍니다. 그리고 함께 공개한 **ORB가 rotated OCR 전용 평가셋**이라 평가 문제까지 해결됩니다.
 - ⚠️ **위협:** *"문서 회전을 앞단에서 고쳐 OCR을 살린다"* 는 아이디어 자체는 **이미 나왔고, 98%로 거의 풀렸습니다.** 그것도 **소형 모델의 vision encoder에 분류 헤드**를 붙인, 아주 단순한 방법으로요.
 
 **→ 그래서 우리가 답해야 할 질문이 바뀝니다:** *"앞단을 붙일까?"*가 아니라 **"분류기로 98%가 나오는데 왜 reasoning 모델이 필요한가?"**입니다. §4에 답 후보를 정리했습니다.
 
-> 참고로 이 논문은 A그룹(canonicalization) 계열과 사실상 같은 구조인데, **A-4(AMR)와 마찬가지로 본 모델의 vision encoder feature를 재활용**합니다. 선생님이 feature 접근이 가능하다고 하셨으니 이 설계를 그대로 따라갈 수 있습니다.
+> 이 논문은 canonicalization 계열과 사실상 같은 구조이고, **A-4(AMR)와 마찬가지로 본 모델의 vision encoder feature를 재활용**합니다. 본 과제도 feature 접근이 가능하므로 이 설계를 그대로 따라갈 수 있습니다.
 
 ---
 
@@ -47,7 +39,7 @@
 - 반면 **구조화된 tool calling**(JSON schema 강제, guided decoding, validator-first)을 쓰면 **격차가 상당히 메워집니다.**
 - **open-ended long-horizon**은 8B·30B에서도 어렵습니다.
 
-여기에 우리가 직접 확인한 증거를 더하면:
+여기에 CodeVision 원문에서 확인한 증거를 더하면:
 
 > **CodeVision(7B) Figure 16** — SFT cold start 없이 RL만 돌리자 **tool turn이 step 30에서 0으로 붕괴**하고 끝까지 0이었습니다. 저자 설명: *"code generation의 방대하고 비구조적인 action space 때문에 pure RL exploration으로는 유용한 정책을 못 찾는다."* **7B에서 이랬습니다. 3B는 더 심할 수밖에 없습니다.**
 
@@ -90,33 +82,28 @@
 - **FaithEyes** — "잘못된 tool output이 추론을 오염시킨다"는 **문제의식은 우리에게도 실재**하지만(앞단이 잘못 회전시키면 본 모델이 틀린 전제 위에서 추론), **judge를 쓰는 해법은 불필요**하다 — OCR 결과 자체가 검증 신호이므로.
 - **TextCall** — *"tool 결과 이미지 없이 tool-call만으로 gain이 나는가"*를 분석하는데, **회전은 돌린 이미지를 다시 봐야 글자를 읽으므로 성립할 수 없다** → 역으로 *"우리 과제는 tool result가 필수인 케이스"*라는 근거로 인용 가능.
 - **AgenticOCR** — "**4B가 GRPO로 OCR tool 호출을 학습한다**"는 실현 가능성 증거로는 유효하지만, tool이 zoom-and-ocr이고 목표가 RAG token 절감이라 **회전과는 무관하다**.
-- **Jigsaw-R1** ⚠️ — 회전이 아니라 jigsaw 퍼즐 연구지만 **"정답이 공짜로 나오는 rule-based reward"라는 설계가 회전과 동일**하고, 그 결론(*"명시적 reasoning 없이도 학습·일반화되며, 복잡한 추론 패턴은 emergent가 아니라 pre-existing"*)은 **우리 reasoning 방식에 불리한 증거**다 → §4 참조.
+- **Jigsaw-R1** — 회전이 아니라 jigsaw 퍼즐 연구지만 **"정답이 공짜로 나오는 rule-based reward"라는 설계가 회전과 동일**하고, 그 결론(*"명시적 reasoning 없이도 학습·일반화되며, 복잡한 추론 패턴은 emergent가 아니라 pre-existing"*)은 **우리 reasoning 방식에 불리한 증거**다 → §4 참조.
 
 ### 📊 방법론이 아니라 평가셋
 
 - **TIR-Bench** ★ — 13개 task 중 **Rotated OCR이 명시적으로 포함**되고 최고 성능이 46%라 포화되지 않아, **다운스트림 평가셋으로 바로 쓸 수 있다**.
 - **ORB** ★ *(Seeing Straight 부속)* — 1,863장의 rotated OCR 전용 평가셋이고 **ORB-Indic으로 11개 저자원 언어까지 커버**해, 우리 과제에 가장 정확히 맞는 평가셋이다.
 
-### ❓ 확인 불가
-
-- **Rotation-R1** — 여전히 확인되지 않는다. *Jigsaw-R1*(2505.23590)은 실재하지만 **회전이 아니라 jigsaw 퍼즐** 과제이므로 같은 논문이 아니다 → 아래 참고 항목으로 분리.
-
 ---
 
-## 3-B. 추가로 받은 목록 — 검증 결과
+## 3-B. 주요 논문 확인 사항
 
-**⚠️ 두 건이 표의 주장과 다릅니다.**
+혼동하기 쉬운 논문들의 실제 내용입니다.
 
-| 논문 | 검증 | 실제 내용 |
-|---|---|---|
-| **TIR-Bench** (2511.01833) | ✅ **실재·매우 중요** | 13개 task 중 **"Rotated OCR"이 명시적으로 포함**. 22개 MLLM 평가에서 **최고 46%**. tool 있는 모델(o3·o4-mini·PyVision)이 크게 앞섬 |
-| **ToolsRL** (2604.19945, CVPR'26) | ✅ **실재·매우 중요** | *Visual Reasoning through Tool-supervised RL* (Amazon). tool에 **rotate·flip 명시 포함**. Qwen2.5-VL-7B |
-| **ReVPT** (2509.01656) | ✅ 실재 | *Reinforced Visual Perception with Tools*. GRPO + 4개 tool(detection·zoom·edge·depth). **"2B 스케일에서 특히 큰 향상"** |
-| **AgenticOCR** (2602.24134) | ⚠️ **rotation 타깃 아님** | *Parsing Only What You Need for **Efficient RAG***. tool이 **zoom-and-ocr**이고 목표는 **visual token 예산 절감**. 4B/8B·GRPO·OCR은 맞지만 **회전과 무관** |
-| **Jigsaw-R1** (2505.23590) | ✅ 실재 · **회전 아님** | *Rule-based Visual RL with **Jigsaw Puzzles***. 섞인 패치의 원래 위치 인덱스를 맞히는 과제 — 회전과 별개. 다만 결론이 우리에게 중요(§4) |
-| **Rotation-R1** | ❌ **확인 불가** | Jigsaw-R1과는 다른 논문입니다. 존재를 확인하지 못했습니다 |
+| 논문 | 실제 내용 |
+|---|---|
+| **TIR-Bench** (2511.01833) | 13개 task 중 **"Rotated OCR"이 명시적으로 포함**. 22개 MLLM 평가에서 **최고 46%**. tool 있는 모델(o3·o4-mini·PyVision)이 크게 앞섬 |
+| **ToolsRL** (2604.19945, CVPR'26) | *Visual Reasoning through Tool-supervised RL* (Amazon). tool에 **rotate·flip 명시 포함**. Qwen2.5-VL-7B |
+| **ReVPT** (2509.01656) | *Reinforced Visual Perception with Tools*. GRPO + 4개 tool(detection·zoom·edge·depth). **"2B 스케일에서 특히 큰 향상"** |
+| **AgenticOCR** (2602.24134) | ⚠️ **이름과 달리 rotation 타깃이 아님.** *Parsing Only What You Need for **Efficient RAG***. tool이 **zoom-and-ocr**이고 목표는 **visual token 예산 절감**. 4B/8B·GRPO·OCR은 맞지만 **회전과 무관** |
+| **Jigsaw-R1** (2505.23590) | ⚠️ **회전이 아니라 jigsaw 퍼즐.** 섞인 패치의 원래 위치 인덱스를 맞히는 과제로, rotation prediction과는 다른 pretext task. 다만 결론이 중요(§4) |
 
-### 이 셋에서 나온 핵심 소득 3가지 ★
+### 여기서 나오는 핵심 근거 3가지 ★
 
 **① TIR-Bench — 우리 접근을 정면으로 뒷받침하는 발견**
 
@@ -139,7 +126,7 @@ Stage 2 : GRPO로 답 정확도 최적화 (학습된 tool을 자유 호출)
 
 **"2B 스케일에서 특히 큰 향상"**을 보고합니다. CodeVision Fig 16의 붕괴와 상충하는 것처럼 보이지만 아닙니다 — **ReVPT는 고정 tool 4개**를 쓰고 CodeVision은 자유 코드 생성이었어요. **§2의 분류 기준(고정 tool은 3B 친화, 자유 코드는 위험)을 오히려 뒷받침합니다.**
 
-*(분류 결과는 §3에 반영했습니다.)*
+*(분류 결과는 §3 참조.)*
 
 ---
 
@@ -191,7 +178,7 @@ RotBench 대신 이쪽이 맞습니다:
 
 ## 5. 권장 실험 경로
 
-원 자료의 5단계는 일반론으로는 타당하지만, **우리 제약(3B, 회전, OCR)에 맞춰 압축**했습니다.
+**3B·회전·OCR 제약에 맞춰 압축한 경로**입니다.
 
 ```
 [0] 진단 — 본 모델 vision encoder에 회전 정보가 있는가?  ← 먼저
@@ -212,7 +199,7 @@ RotBench 대신 이쪽이 맞습니다:
      └ 문서 스코프에서는 비중이 작음. 필요해지면 간단한 penalty로 시작
 ```
 
-**[0]과 [1a]를 먼저 하시길 권합니다.** [1a]에서 분류기가 이미 95%+를 낸다면 reasoning 방식의 정당화가 §4의 3·4번으로 좁혀지고, 못 낸다면 그 자체가 우리 방식이 필요한 근거가 됩니다. **어느 쪽이 나와도 방향이 정해집니다.**
+**[0]과 [1a]를 먼저 해야 합니다.** [1a]에서 분류기가 이미 95%+를 낸다면 reasoning 방식의 정당화가 §4의 3·4번으로 좁혀지고, 못 낸다면 그 자체가 reasoning 방식이 필요한 근거가 됩니다. **어느 쪽이 나와도 방향이 정해집니다.**
 
 **자유 코드 생성(Thyme/PyVision) 경로는 이 스코프에서 시도할 이유가 없습니다.**
 
@@ -225,4 +212,4 @@ RotBench 대신 이쪽이 맞습니다:
 - Beacon: arxiv.org/abs/2607.28595
 - 나머지는 원 자료의 References 참조
 
-*이 문서는 초록·검색 요약 기반이며 원문 대조 전입니다. 특히 Seeing Straight은 우리 과제와 가장 가까우므로 **원문 확보를 권합니다.***
+*이 문서는 초록·검색 요약 기반이며 원문 대조 전입니다. 특히 Seeing Straight·ToolsRL·TIR-Bench는 본 과제와 직결되므로 **원문 확보가 필요합니다.***
