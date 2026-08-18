@@ -68,6 +68,8 @@
 - **Chain-of-Focus** — 고정 crop/zoom 구조라 출력이 단순하고, tool만 rotate로 바꾸면 그대로 최소 baseline이 된다.
 - **OpenThinkIMG** — 표준 tool interface와 RL 환경이 이미 갖춰져 있어 밑바닥부터 만들 필요가 없다.
 - **Beacon** ★ — "tool이 실제로 도움이 됐는가"를 학습 신호로 삼는데, rotated OCR에서는 **회전 전후 OCR 정확도 차이**로 그걸 teacher 없이 공짜로 잴 수 있다 → *"부를까 말까"*가 아니라 **"어느 각도가 맞았나"의 graded reward**로 전용 가능.
+- **ToolsRL** ★ — **rotate·flip이 이미 tool 목록에 있고**, 2단계 curriculum이 비싼 trajectory 없이 tool 사용법을 가르쳐 **3B의 cold start 부담을 덜어준다**.
+- **ReVPT** — 고정 tool 4개를 GRPO로 학습해 **"2B 스케일에서 특히 큰 향상"**을 보고한 사례라, 소형에서 tool-use RL이 실제로 된다는 직접 증거다.
 
 ### ⚠️ 조건부 — 3B에서 위험, 보완 필요
 
@@ -86,6 +88,15 @@
 
 - **FaithEyes** — "잘못된 tool output이 추론을 오염시킨다"는 **문제의식은 우리에게도 실재**하지만(앞단이 잘못 회전시키면 본 모델이 틀린 전제 위에서 추론), **judge를 쓰는 해법은 불필요**하다 — OCR 결과 자체가 검증 신호이므로.
 - **TextCall** — *"tool 결과 이미지 없이 tool-call만으로 gain이 나는가"*를 분석하는데, **회전은 돌린 이미지를 다시 봐야 글자를 읽으므로 성립할 수 없다** → 역으로 *"우리 과제는 tool result가 필수인 케이스"*라는 근거로 인용 가능.
+- **AgenticOCR** — "**4B가 GRPO로 OCR tool 호출을 학습한다**"는 실현 가능성 증거로는 유효하지만, tool이 zoom-and-ocr이고 목표가 RAG token 절감이라 **회전과는 무관하다**.
+
+### 📊 방법론이 아니라 평가셋
+
+- **TIR-Bench** ★ — 13개 task 중 **Rotated OCR이 명시적으로 포함**되고 최고 성능이 46%라 포화되지 않아, **다운스트림 평가셋으로 바로 쓸 수 있다**.
+
+### ❓ 확인 불가
+
+- **Rotation-R1** — 검색으로 존재를 확인하지 못했다. 정확한 제목이나 arXiv 번호가 있으면 다시 확인하겠다.
 
 ---
 
@@ -124,11 +135,7 @@ Stage 2 : GRPO로 답 정확도 최적화 (학습된 tool을 자유 호출)
 
 **"2B 스케일에서 특히 큰 향상"**을 보고합니다. CodeVision Fig 16의 붕괴와 상충하는 것처럼 보이지만 아닙니다 — **ReVPT는 고정 tool 4개**를 쓰고 CodeVision은 자유 코드 생성이었어요. **§2의 분류 기준(고정 tool은 3B 친화, 자유 코드는 위험)을 오히려 뒷받침합니다.**
 
-### 분류 갱신
-
-- ✅ **적합 추가:** **ToolsRL**(rotate가 tool에 이미 포함 + 2단계 curriculum), **ReVPT**(2B급에서 검증된 고정-tool RL)
-- 📊 **평가셋 추가:** **TIR-Bench**의 Rotated OCR task — 최고 46%라 포화되지 않았고, 우리 과제와 직결
-- ⚠️ **AgenticOCR:** 회전 목적으로는 부적합. 다만 **"4B가 GRPO로 OCR tool 호출을 학습한다"**는 실현 가능성 증거로는 유효
+*(분류 결과는 §3에 반영했습니다.)*
 
 ---
 
