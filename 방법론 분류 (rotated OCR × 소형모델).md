@@ -89,6 +89,7 @@
 - **FaithEyes** — "잘못된 tool output이 추론을 오염시킨다"는 **문제의식은 우리에게도 실재**하지만(앞단이 잘못 회전시키면 본 모델이 틀린 전제 위에서 추론), **judge를 쓰는 해법은 불필요**하다 — OCR 결과 자체가 검증 신호이므로.
 - **TextCall** — *"tool 결과 이미지 없이 tool-call만으로 gain이 나는가"*를 분석하는데, **회전은 돌린 이미지를 다시 봐야 글자를 읽으므로 성립할 수 없다** → 역으로 *"우리 과제는 tool result가 필수인 케이스"*라는 근거로 인용 가능.
 - **AgenticOCR** — "**4B가 GRPO로 OCR tool 호출을 학습한다**"는 실현 가능성 증거로는 유효하지만, tool이 zoom-and-ocr이고 목표가 RAG token 절감이라 **회전과는 무관하다**.
+- **Jigsaw-R1** ⚠️ — 회전이 아니라 jigsaw 퍼즐 연구지만 **"정답이 공짜로 나오는 rule-based reward"라는 설계가 회전과 동일**하고, 그 결론(*"명시적 reasoning 없이도 학습·일반화되며, 복잡한 추론 패턴은 emergent가 아니라 pre-existing"*)은 **우리 reasoning 방식에 불리한 증거**다 → §4 참조.
 
 ### 📊 방법론이 아니라 평가셋
 
@@ -96,7 +97,7 @@
 
 ### ❓ 확인 불가
 
-- **Rotation-R1** — 검색으로 존재를 확인하지 못했다. 정확한 제목이나 arXiv 번호가 있으면 다시 확인하겠다.
+- **Rotation-R1** — 여전히 확인되지 않는다. *Jigsaw-R1*(2505.23590)은 실재하지만 **회전이 아니라 jigsaw 퍼즐** 과제이므로 같은 논문이 아니다 → 아래 참고 항목으로 분리.
 
 ---
 
@@ -110,7 +111,8 @@
 | **ToolsRL** (2604.19945, CVPR'26) | ✅ **실재·매우 중요** | *Visual Reasoning through Tool-supervised RL* (Amazon). tool에 **rotate·flip 명시 포함**. Qwen2.5-VL-7B |
 | **ReVPT** (2509.01656) | ✅ 실재 | *Reinforced Visual Perception with Tools*. GRPO + 4개 tool(detection·zoom·edge·depth). **"2B 스케일에서 특히 큰 향상"** |
 | **AgenticOCR** (2602.24134) | ⚠️ **rotation 타깃 아님** | *Parsing Only What You Need for **Efficient RAG***. tool이 **zoom-and-ocr**이고 목표는 **visual token 예산 절감**. 4B/8B·GRPO·OCR은 맞지만 **회전과 무관** |
-| **Rotation-R1** | ❌ **확인 불가** | 검색으로 존재를 확인하지 못했습니다. 정확한 제목·arXiv 번호를 알려주시면 다시 찾아보겠습니다 |
+| **Jigsaw-R1** (2505.23590) | ✅ 실재 · **회전 아님** | *Rule-based Visual RL with **Jigsaw Puzzles***. 섞인 패치의 원래 위치 인덱스를 맞히는 과제 — 회전과 별개. 다만 결론이 우리에게 중요(§4) |
+| **Rotation-R1** | ❌ **확인 불가** | Jigsaw-R1과는 다른 논문입니다. 존재를 확인하지 못했습니다 |
 
 ### 이 셋에서 나온 핵심 소득 3가지 ★
 
@@ -165,7 +167,16 @@ RotBench 대신 이쪽이 맞습니다:
 
 ### 그리고 "왜 분류기가 아니라 reasoning인가"에 답해야 합니다
 
-Seeing Straight이 **분류 헤드만으로 98%**를 냈으니, reasoning 모델을 쓰는 이유를 따로 대야 합니다. 후보:
+**⚠️ 이 질문이 생각보다 무겁습니다. 독립된 두 증거가 "reasoning이 필요 없을 수도 있다"를 가리킵니다.**
+
+| 출처 | 내용 |
+|---|---|
+| **Seeing Straight** | 문서 회전을 **분류 헤드만으로 98%** 달성 |
+| **Jigsaw-R1** | 같은 성격(rule-based 정답이 있는 공간 과제)에서 *"**명시적 reasoning 없이도** 학습·일반화된다"*, 그리고 *"복잡한 추론 패턴은 **emergent가 아니라 pre-existing**"* |
+
+**Jigsaw-R1의 두 번째 결론이 특히 3B에 불리합니다.** 추론 패턴이 학습으로 생겨나는 게 아니라 **이미 있던 게 드러나는 것**이라면, 그 패턴이 애초에 약한 3B 모델에서는 RL을 돌려도 나타나지 않을 수 있습니다.
+
+**→ 그러니 reasoning 방식을 밀려면 "정확도가 더 높다"가 아니라 다른 축에서 이유를 대야 합니다.** 후보:
 
 1. **abstain** — 12-class 분류기는 "판단 보류"를 표현할 수 없습니다. 방향이 애매한 문서(도표만 있는 페이지, 회전 대칭 양식)에서 강제로 한 클래스를 고릅니다.
 2. **설명 가능성** — 왜 그 각도로 판단했는지 근거를 남길 수 있습니다. FaithEyes·TreeBench의 문제의식과 연결됩니다.
