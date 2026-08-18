@@ -116,21 +116,50 @@ tool 목록에 **rotate·flip이 이미 포함**돼 있고, base는 Qwen2.5-VL-7
 3. **★ 함정 — Stage 1에는 회전된 샘플만 넣어야 합니다.** 정방향 문서를 섞으면 모델이 *"그냥 정방향이라 가정하고 답하기"* shortcut을 배웁니다. **이건 abstain 학습과 충돌하므로**, Stage 1은 회전만 / Stage 2에서 정방향을 섞는 설계가 필요합니다.
 4. base가 Qwen2.5-VL-7B 하나뿐이라 **3B 재현은 미검증**입니다.
 
-## R-2. ReVPT / Reinforced Visual Perception with Tools (arXiv 2509.01656) `✔`
+## R-2. ReVPT / Reinforced Visual Perception with Tools (arXiv 2509.01656) `✅` ★ **3B 검증**
 
-- **기존 문제점:** 시각 tool을 붙여줘도 **모델이 제대로 쓰지 못한다.**
-- **핵심 아이디어:** GRPO 기반 RL로 **4개 고정 tool**(detection·zoom·edge·depth) 사용을 학습시킨다.
+> **정정:** 이전에 *"2B 스케일에서 큰 향상"*이라고 적었는데 틀렸습니다. 실제로는 **ReVPT-3B / ReVPT-7B**입니다 — 오히려 우리 규모에 정확히 맞습니다.
 
-**→ 아이디어 씨앗:** **"2B 스케일에서 특히 큰 향상"**을 보고합니다. CodeVision이 7B에서도 붕괴한 것과 대비되는데, 차이는 **ReVPT가 고정 tool을 쓰고 CodeVision은 자유 코드 생성**이었다는 점입니다. → **소형에서 tool-use RL이 실제로 된다는 직접 증거**이자, *"고정 tool은 되고 코드 생성은 안 된다"*는 우리 판단의 근거입니다.
+- **기존 문제점:** SFT로 시각 tool을 붙이면 **데이터 생성이 비싸고, 세심한 필터링에 의존하며, 일반화가 나쁘다.**
+- **핵심 아이디어:** GRPO 기반 RL로 **4개 고정 tool**(object detection · zoom-in · edge detection · depth estimation) 사용을 학습시킨다.
 
-## R-3. Beacon: Knowing When and How to Perform Agentic Visual Reasoning (arXiv 2607.28595) `✔`
+**성능:** CV-Bench에서 instruct 대비 **ReVPT-3B +9.03%**, ReVPT-7B +9.44%. base는 **Qwen2.5-VL-3B-Instruct / 7B-Instruct**. 3B에서 SFT·text-only GRPO baseline을 모두 앞섭니다.
 
-- **기존 문제점:** tool을 "불렀나 안 불렀나"로만 학습시키면 **실제로 도움이 됐는지와 무관해진다.**
-- **핵심 아이디어:** teacher 모델을 **tool 있이/없이** 돌린 성능 차이(**tool-induced gain**)로 각 샘플을 라벨링해 학습 신호로 쓴다.
+**→ 아이디어 씨앗:**
 
-도구를 썼다는 사실 자체는 좋은 게 아닙니다. **써서 나아졌는지**가 중요하죠. 이 논문은 그 "나아진 정도"를 직접 측정해서 보상에 씁니다.
+1. **★★ cold start 없는 RL은 3B에서도 무너집니다.** 저자들은 처음에 R1-Zero 방식을 시도했다가 **"tool을 쓰려는 성향이 점진적으로 감소"**하는 걸 관찰하고 cold start를 도입했습니다. **CodeVision Figure 16(7B)의 붕괴를 3B에서 독립적으로 재현**한 셈이에요.
+   - 저자 설명이 중요합니다 — *"시각 과제를 푸는 데 tool이 본질적으로 필요하지 않았고, **처리된 이미지로 추론하는 것이 모델의 초기 학습 데이터로부터의 distribution shift**였기 때문"*.
+   - **이건 A-2(EquiAdapt)의 misalignment 문제와 같은 이야기입니다** — 앞단이 만든 이미지가 본 모델에게 낯설다는 것. 계열이 다른 두 논문이 같은 현상을 지적합니다.
+   - cold-start 데이터는 **GPT-4.1**로 합성했습니다.
 
-**→ 아이디어 씨앗:** **rotated OCR에서는 이걸 teacher 없이 직접 잴 수 있습니다** — 회전 보정 전후의 **OCR 정확도 차이**가 곧 gain이니까요. 게다가 본 모델 feature 접근이 있으니 logit 수준에서도 측정 가능합니다. 용도를 바꿔서, *"부를까 말까"*가 아니라 **"어느 각도가 맞았나"의 graded reward**로 쓰는 게 우리에게 맞습니다.
+2. **★★ 저자들이 rotation tool을 실제로 시도했다가 뺐습니다.**
+   > *"초기에는 보조선 그리기, 하이라이팅, **rotation** 등 더 넓은 tool을 포함했으나 **극히 낮은 활용률**을 발견했다. **소형 모델은 제한된 world knowledge 때문에 여러 tool을 동시에 학습하기 어렵다**는 점을 보여준다."*
+
+   **맥락을 정확히 봐야 합니다.** ① **여러 tool을 동시에** 학습시켰고 ② 그들의 과제(SAT·CV-Bench·BLINK·MMStar)는 **회전을 요구하지 않습니다.** 모델이 rotation을 쓸 이유가 없었어요.
+   → 우리는 **tool이 1~2개이고 과제가 회전을 반드시 요구**합니다. 조건이 정반대라 이 결과가 우리에게 그대로 적용되진 않지만, **"tool을 늘리지 말 것"**이라는 강한 교훈은 남습니다.
+
+3. **★ 3B가 tool이 가장 유용한 구간입니다.** 저자들의 결론 — *"tool specialist의 유용성은 모델 능력과 **non-monotonic 관계**다. **3B 같은 자원 제약 모델에서는 tool이 지각 향상의 강력한 지름길**(9%+ 향상)이지만, 중간 규모로 가면 **더 큰 vision encoder가 외부 tool 의존도를 낮춰 marginal benefit이 감소**한다."*
+   → **우리의 3B 선택을 정당화하는 근거**입니다.
+
+4. **tool 출력이 틀릴 수 있다는 한계** — object detection이 매트리스를 베개로 오인하는 등, 외부 specialist의 오류가 본 모델을 오염시킵니다. **단 회전 tool은 결정적 연산이라 이 문제가 없습니다** — 우리 설계의 이점입니다.
+
+## R-3. Beacon: Knowing When and How to Perform Agentic Visual Reasoning (arXiv 2607.28595) `✅`
+
+- **기존 문제점:** tool을 "불렀나"로만 보면 **실제 효과와 무관**해진다.
+- **핵심 아이디어:** tool 사용을 두 축으로 분해한다 — **Mode Adaptiveness**(tool이 정말 필요한지 인식하는가)와 **Tool Effect**(실제로 능력을 확장했는가).
+
+**★ 핵심 발견이 우리에게 직접 경고입니다.**
+
+> *"어려운 예제에서 tool 사용으로 얻은 이득이, **이미 풀 수 있던 쉬운 예제에서 생긴 손해로 대부분 상쇄된다**."*
+
+**A-2가 CIFAR10에서 관측한 것(96.97 → 93.29)과 같은 현상**입니다. 계열이 완전히 다른 두 논문이 같은 결론에 도달했어요.
+
+메커니즘은 **Necessity-Aware Adaptive Reward(NAAR)** + **Hint-Guided Capability Expansion**이고, forgetting 완화를 위해 **순수 텍스트 궤적을 일부 주입**합니다. base는 **Qwen3-VL-8B-Instruct**(3B 아님).
+
+**→ 아이디어 씨앗:**
+1. **"쉬운 케이스에서의 손해"를 반드시 측정해야 합니다.** 우리 경우 = **정방향 문서에서 앞단이 성능을 떨어뜨리지 않는가.** 논문에 이 수치가 없으면 심사에서 바로 지적받습니다.
+2. tool-induced gain을 학습 신호로 쓰는 발상은 유효하지만, **rotated OCR에서는 teacher 없이 회전 전후 OCR 정확도 차이로 직접 잴 수 있습니다.**
+3. **forgetting 완화용 텍스트 궤적 주입**은 값싼 실무 기법이라 그대로 차용할 만합니다.
 
 ---
 

@@ -95,7 +95,11 @@ Goswami 외 (OLA Electric · Krutrim AI). **원문 대조 완료.**
 
 여기에 CodeVision 원문에서 확인한 증거를 더하면:
 
-> **CodeVision(7B) Figure 16** — SFT cold start 없이 RL만 돌리자 **tool turn이 step 30에서 0으로 붕괴**하고 끝까지 0이었습니다. 저자 설명: *"code generation의 방대하고 비구조적인 action space 때문에 pure RL exploration으로는 유용한 정책을 못 찾는다."* **7B에서 이랬습니다. 3B는 더 심할 수밖에 없습니다.**
+> **CodeVision(7B) Figure 16** — SFT cold start 없이 RL만 돌리자 **tool turn이 step 30에서 0으로 붕괴**하고 끝까지 0이었습니다. 저자 설명: *"code generation의 방대하고 비구조적인 action space 때문에 pure RL exploration으로는 유용한 정책을 못 찾는다."*
+>
+> **ReVPT(3B)도 독립적으로 같은 현상을 보고합니다** — R1-Zero 방식을 시도했다가 *"tool을 쓰려는 성향이 점진적으로 감소"*하는 걸 관찰하고 cold start를 도입했습니다. 이유는 *"**처리된 이미지로 추론하는 것이 모델 초기 학습 데이터로부터의 distribution shift**"*였다는 것 — **A-2(EquiAdapt)의 misalignment 문제와 같은 이야기**입니다.
+>
+> **7B와 3B 양쪽에서, 자유 코드 생성과 고정 tool 양쪽에서 확인된 현상입니다. cold start는 필수로 봐야 합니다.**
 
 **→ 분류 기준 3가지**
 
@@ -103,7 +107,7 @@ Goswami 외 (OLA Electric · Krutrim AI). **원문 대조 완료.**
 |---|---|---|
 | **출력 형태** | 고정 tool + 구조화된 인자 | **자유 코드 생성** |
 | **호출 길이** | 1~2턴 | 수십 턴 long-horizon |
-| **학습** | SFT cold start **또는** tool-supervised RL(§3-B ②) | 맨바닥 RL-only 부트스트랩 |
+| **학습** | SFT cold start **또는** tool-supervised RL(§3-B ②) | 맨바닥 RL-only 부트스트랩 — **7B(CodeVision)·3B(ReVPT) 양쪽에서 붕괴 확인** |
 
 ---
 
@@ -114,9 +118,9 @@ Goswami 외 (OLA Electric · Krutrim AI). **원문 대조 완료.**
 - **Seeing Straight** ★ *(tool reasoning이 아니라 분류 파이프라인)* — 우리 스코프(문서 회전 → OCR)를 그대로 다룬 **가장 가까운 선행 연구**이고 **소형 모델 vision encoder + 분류 헤드만으로 98%**를 냈으므로, **가장 먼저 재현해 성능 상한을 잡아야 할 baseline**이다(§1·§4).
 - **Adaptive-CoF** ★ *(구 Chain-of-Focus, v3에서 개명)* — **AGAR reward가 그룹 내에 직답 성공이 있을 때만 tool 사용을 깎는 구조**라, 정방향 샘플을 빼지 않고도 shortcut을 막고 abstain을 자연스럽게 학습시킬 수 있다.
 - **OpenThinkIMG** ★ — **Qwen2-VL-2B에서 base 29.56 → SFT 45.67 → V-ToolRL 59.39**를 보인 유일한 소형 검증 사례이자, tool interface·궤적 생성·RL 환경이 갖춰진 오픈소스 인프라다.
-- **Beacon** ★ — "tool이 실제로 도움이 됐는가"를 학습 신호로 삼는데, rotated OCR에서는 **회전 전후 OCR 정확도 차이**로 그걸 teacher 없이 공짜로 잴 수 있다 → *"부를까 말까"*가 아니라 **"어느 각도가 맞았나"의 graded reward**로 전용 가능.
+- **Beacon** — *"어려운 예제에서 tool로 얻은 이득이 **쉬운 예제에서 생긴 손해로 대부분 상쇄된다**"*는 발견이 **정방향 문서에서의 성능 보존을 반드시 측정해야 한다**는 경고를 준다. gain을 reward로 쓰는 발상도 유효하되 base가 8B라 3B는 미검증.
 - **ToolsRL** ★ — **rotate·flip이 이미 tool 목록에 있고**, 2단계 curriculum이 비싼 trajectory 없이 tool 사용법을 가르쳐 **3B의 cold start 부담을 덜어준다**.
-- **ReVPT** — 고정 tool 4개를 GRPO로 학습해 **"2B 스케일에서 특히 큰 향상"**을 보고한 사례라, 소형에서 tool-use RL이 실제로 된다는 직접 증거다.
+- **ReVPT** ★ — **Qwen2.5-VL-3B에서 CV-Bench +9.03%**를 낸 3B 직접 검증이자, *"tool의 유용성은 모델 능력과 non-monotonic 관계이고 **3B 같은 자원 제약 모델에서 가장 크다**"*는 결론으로 우리 규모 선택을 뒷받침한다.
 
 ### ⚠️ 조건부 — 3B에서 위험, 보완 필요
 
