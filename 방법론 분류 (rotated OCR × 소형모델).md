@@ -131,10 +131,8 @@ Goswami 외 (OLA Electric · Krutrim AI). **원문 대조 완료.**
 | 논문 | 실제 내용 |
 |---|---|
 | **TIR-Bench** (2511.01833) | 13개 task 중 **"Rotated OCR"이 명시적으로 포함**. 22개 MLLM 평가에서 **최고 46%**. tool 있는 모델(o3·o4-mini·PyVision)이 크게 앞섬 |
-| **ToolsRL** (2604.19945, CVPR'26) | *Visual Reasoning through Tool-supervised RL* (Amazon). tool에 **rotate·flip 명시 포함**. Qwen2.5-VL-7B |
-| **ReVPT** (2509.01656) | *Reinforced Visual Perception with Tools*. GRPO + 4개 tool(detection·zoom·edge·depth). **"2B 스케일에서 특히 큰 향상"** |
-| **AgenticOCR** (2602.24134) | ⚠️ **이름과 달리 rotation 타깃이 아님.** *Parsing Only What You Need for **Efficient RAG***. tool이 **zoom-and-ocr**이고 목표는 **visual token 예산 절감**. 4B/8B·GRPO·OCR은 맞지만 **회전과 무관** |
-| **Jigsaw-R1** (2505.23590) | ⚠️ **회전이 아니라 jigsaw 퍼즐.** 섞인 패치의 원래 위치 인덱스를 맞히는 과제로, rotation prediction과는 다른 pretext task. 다만 결론이 중요(§4) |
+| **ToolsRL** (2604.19945, CVPR'26) | *Visual Reasoning through Tool-supervised RL* (Amazon). tool에 **rotate·flip 명시 포함**. base Qwen2.5-VL-7B |
+| **ReVPT** (2509.01656) | *Reinforced Visual Perception with Tools*. GRPO + 4개 tool(detection·zoom·edge·depth). base **Qwen2.5-VL-3B/7B-Instruct** |
 
 ### 여기서 나오는 핵심 근거 3가지 ★
 
@@ -202,9 +200,9 @@ global만 쓰면 무관한 step도 보상받고, answer만 쓰면 탐색이 죽�
 
 *(base는 Qwen2.5-VL-7B 하나뿐입니다. 3B 실험은 없습니다.)*
 
-**③ ReVPT — 소형에서 tool-use RL이 된다는 증거**
+**③ ReVPT — 3B에서 tool-use RL이 된다는 직접 증거**
 
-**"2B 스케일에서 특히 큰 향상"**을 보고합니다. CodeVision Fig 16의 붕괴와 상충하는 것처럼 보이지만 아닙니다 — **ReVPT는 고정 tool 4개**를 쓰고 CodeVision은 자유 코드 생성이었어요. **§2의 분류 기준(고정 tool은 3B 친화, 자유 코드는 위험)을 오히려 뒷받침합니다.** *(원문 미대조)*
+**Qwen2.5-VL-3B**에서 CV-Bench +9.03%를 냅니다. CodeVision Fig 16의 붕괴와 상충하는 것처럼 보이지만 아닙니다 — **ReVPT는 고정 tool 4개**를 쓰고 CodeVision은 자유 코드 생성이었어요. **§2의 분류 기준(고정 tool은 3B 친화, 자유 코드는 위험)을 뒷받침합니다.** 상세는 §3 참조.
 
 *(분류 결과는 §3 참조.)*
 
