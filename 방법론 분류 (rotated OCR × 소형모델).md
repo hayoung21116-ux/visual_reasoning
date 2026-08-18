@@ -122,31 +122,6 @@ Goswami 외 (OLA Electric · Krutrim AI). **원문 대조 완료.**
 - **ToolsRL** ★ — **rotate·flip이 이미 tool 목록에 있고**, 2단계 curriculum이 비싼 trajectory 없이 tool 사용법을 가르쳐 **3B의 cold start 부담을 덜어준다**.
 - **ReVPT** ★ — **Qwen2.5-VL-3B에서 CV-Bench +9.03%**를 낸 3B 직접 검증이자, *"tool의 유용성은 모델 능력과 non-monotonic 관계이고 **3B 같은 자원 제약 모델에서 가장 크다**"*는 결론으로 우리 규모 선택을 뒷받침한다.
 
-### ⚠️ 조건부 — 3B에서 위험, 보완 필요
-
-- **DeepEyes** — "SFT 없이 RL만으로 된다"를 **7B에서** 검증한 것이라, 3B에서 그대로 믿고 가면 위험하다 → **SFT cold start 필수**.
-- **Pixel Reasoner** — 방법 자체보다 *"RL이 text-only local optimum으로 붕괴한다"*는 문제의식이 3B에서 더 중요하다 → 개념만 차용.
-- **Visual Sketchpad** — training-free지만 **강한 base 모델을 전제**하므로 3B에서 sketch 품질을 기대하기 어렵다.
-
-### ❌ 부적합 — 3B에서 비권장
-
-- **Thyme / PyVision** — 자유 Python 코드 생성은 3B에서 붕괴 위험이 큰데(§2), **회전은 애초에 4~6지선다라 그 유연성이 필요 없다** — 대가만 치르고 이득이 없다.
-- **Mini-o3** — 수십 step long-horizon은 문헌상 8B·30B에서도 어려운 영역이다.
-- **VC-Tooler** — multi-tool composition과 unseen tool 일반화가 목표인데, **우리 tool은 1~2개**라 풀 문제 자체가 없다.
-- **Act Wisely / Metis** — tool 과용 억제(98%→2%)가 목표인데 rotated OCR은 거의 매 입력에 회전이 필요해서 **억제할 과용 자체가 없다**.
-
-### 🤔 참고만
-
-- **FaithEyes** — "잘못된 tool output이 추론을 오염시킨다"는 **문제의식은 우리에게도 실재**하지만(앞단이 잘못 회전시키면 본 모델이 틀린 전제 위에서 추론), **judge를 쓰는 해법은 불필요**하다 — OCR 결과 자체가 검증 신호이므로.
-- **TextCall** — *"tool 결과 이미지 없이 tool-call만으로 gain이 나는가"*를 분석하는데, **회전은 돌린 이미지를 다시 봐야 글자를 읽으므로 성립할 수 없다** → 역으로 *"우리 과제는 tool result가 필수인 케이스"*라는 근거로 인용 가능.
-- **AgenticOCR** — "**4B가 GRPO로 OCR tool 호출을 학습한다**"는 실현 가능성 증거로는 유효하지만, tool이 zoom-and-ocr이고 목표가 RAG token 절감이라 **회전과는 무관하다**.
-- **Jigsaw-R1** — 회전이 아니라 jigsaw 퍼즐 연구지만 **"정답이 공짜로 나오는 rule-based reward"라는 설계가 회전과 동일**하고, 그 결론(*"명시적 reasoning 없이도 학습·일반화되며, 복잡한 추론 패턴은 emergent가 아니라 pre-existing"*)은 **우리 reasoning 방식에 불리한 증거**다 → §4 참조.
-
-### 📊 방법론이 아니라 평가셋
-
-- **TIR-Bench** ★ — 13개 task 중 **Rotated OCR이 명시적으로 포함**되고 최고 성능이 46%라 포화되지 않아, **다운스트림 평가셋으로 바로 쓸 수 있다**.
-- **ORB** ★ *(Seeing Straight 부속)* — 1,863장의 rotated OCR 전용 평가셋이고 **ORB-Indic으로 11개 저자원 언어까지 커버**해, 우리 과제에 가장 정확히 맞는 평가셋이다.
-
 ---
 
 ## 3-B. 주요 논문 확인 사항
