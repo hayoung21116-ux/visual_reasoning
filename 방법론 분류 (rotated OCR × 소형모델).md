@@ -65,41 +65,29 @@
 
 ### ✅ 적합 — 3B에서 바로 시도 가능
 
-| 방법론 | 이유 | 우리 과제 적용 |
-|---|---|---|
-| **Chain-of-Focus** | 고정 crop/zoom, SFT→RL. **가장 단순한 구조** | tool만 rotate로 교체하면 **최소 baseline** |
-| **OpenThinkIMG** | 표준화된 tool interface + trajectory 생성 + RL 환경 | **구현 인프라**로 활용 |
-| **Beacon** | **tool-induced gain**으로 학습 샘플을 라벨링 | ★ **우리와 가장 잘 맞는 아이디어** — 아래 참고 |
-| **Act Wisely / Metis** | HDPO로 accuracy 채널과 efficiency 채널을 **분리** 최적화 | abstain 설계에 참고 |
+- **Chain-of-Focus** — 고정 crop/zoom 구조라 출력이 단순하고, tool만 rotate로 바꾸면 그대로 최소 baseline이 된다.
+- **OpenThinkIMG** — 표준 tool interface와 RL 환경이 이미 갖춰져 있어 밑바닥부터 만들 필요가 없다.
+- **Beacon** ★ — "tool이 실제로 도움이 됐는가"를 학습 신호로 삼는데, rotated OCR에서는 **회전 전후 OCR 정확도 차이**로 그걸 teacher 없이 공짜로 잴 수 있다.
+- **Act Wisely / Metis** — accuracy와 efficiency를 분리 최적화하는 HDPO 구조가 abstain 설계에 쓸 만하다. **(단, 전체 정책으로는 부적합 — 아래 주의)**
 
-**Beacon이 특히 잘 맞는 이유:** "이 샘플에 tool이 실제로 도움이 됐는가"를 teacher 모델(Qwen2.5-VL-72B)의 with/without 성능 차이로 라벨링합니다. **rotated OCR에서는 이걸 teacher 없이 직접 잴 수 있습니다** — 회전 보정 전후의 OCR 정확도 차이가 곧 gain이니까요. 본 모델 feature 접근까지 있으니 logit 수준에서도 측정 가능합니다.
-
-*(0단계 B-4 AdaTooler-V의 Tool Benefit Score와 같은 메커니즘입니다. 서로 독립적으로 같은 결론에 도달한 셈이에요.)*
-
-**Metis 주의점:** tool 호출을 **98% → 2%로 줄이면서** 정확도를 올린 논문인데, 이건 **"대부분의 문제에 tool이 불필요한"** 세팅입니다. **우리는 반대예요** — rotated OCR에서는 거의 항상 회전이 필요합니다. Beacon이 Metis를 비판한 지점도 그것입니다(*"tool 사용을 억제하는 방향이라 과제 의존적 적응성이 없다"*). **Metis는 전체 정책이 아니라 abstain 부분에만 참고하세요.**
+> **Metis 주의:** tool 호출을 **98% → 2%로 줄이며** 정확도를 올린 논문인데, 이건 *"대부분의 문제에 tool이 불필요한"* 세팅입니다. **우리는 정반대**예요 — rotated OCR에서는 거의 항상 회전이 필요합니다. Beacon도 같은 지점을 비판합니다(*"tool 사용을 억제하는 방향이라 과제 의존적 적응성이 없다"*). **abstain 부분에만 참고하세요.**
 
 ### ⚠️ 조건부 — 3B에서 위험, 보완 필요
 
-| 방법론 | 위험 | 대응 |
-|---|---|---|
-| **DeepEyes** | "SFT 없이 RL만으로 emergence"를 주장하지만 **7B에서 검증**됨. 3B 재현 보장 없음 | **SFT cold start를 반드시 붙일 것** |
-| **Pixel Reasoner** | 방법보다 **문제의식이 중요** — RL이 text-only local optimum으로 붕괴하는 문제. **3B에서 더 심각** | curiosity reward 개념만 차용 |
-| **Visual Sketchpad** | training-free지만 **강한 base 모델 전제**. 3B에서 sketch 품질 기대 어려움 | 개념만 참고 |
+- **DeepEyes** — "SFT 없이 RL만으로 된다"를 **7B에서** 검증한 것이라, 3B에서 그대로 믿고 가면 위험하다 → **SFT cold start 필수**.
+- **Pixel Reasoner** — 방법 자체보다 *"RL이 text-only local optimum으로 붕괴한다"*는 문제의식이 3B에서 더 중요하다 → 개념만 차용.
+- **Visual Sketchpad** — training-free지만 **강한 base 모델을 전제**하므로 3B에서 sketch 품질을 기대하기 어렵다.
 
 ### ❌ 부적합 — 3B에서 비권장
 
-| 방법론 | 이유 |
-|---|---|
-| **Thyme · PyVision** | **자유 Python 코드 생성.** §2의 근거로 3B에서 붕괴 위험이 큽니다. 게다가 **회전은 코드 유연성이 필요 없는 4~6지선다**예요 — 유연성의 대가만 치르고 이득이 없습니다 |
-| **Mini-o3** | 수십 step long-horizon. 문헌 결론상 8B·30B에서도 어려운 영역 |
-| **VC-Tooler** | multi-tool composition · unseen tool 일반화가 목표. **우리 tool은 1~2개**라 풀 문제 자체가 없음 |
+- **Thyme / PyVision** — 자유 Python 코드 생성은 3B에서 붕괴 위험이 큰데(§2), **회전은 애초에 4~6지선다라 그 유연성이 필요 없다** — 대가만 치르고 이득이 없다.
+- **Mini-o3** — 수십 step long-horizon은 문헌상 8B·30B에서도 어려운 영역이다.
+- **VC-Tooler** — multi-tool composition과 unseen tool 일반화가 목표인데, **우리 tool은 1~2개**라 풀 문제 자체가 없다.
 
 ### 🤔 참고만
 
-| 방법론 | 메모 |
-|---|---|
-| **FaithEyes** | judge가 tool output의 유용성을 평가. **우리는 judge가 필요 없습니다** — OCR 결과 자체가 검증 신호니까요. 개념만 |
-| **TextCall** | "tool 결과 이미지 없이 tool-call만으로 gain이 나는가"를 분석. **회전에는 성립할 수 없습니다** — 돌린 이미지를 다시 봐야 글자를 읽으니까요. 역으로 **"우리 과제는 tool result가 반드시 필요한 케이스"라는 근거**로 인용 가능 |
+- **FaithEyes** — tool output의 유용성을 judge로 평가하는데, **우리는 OCR 결과 자체가 검증 신호**라 judge가 필요 없다.
+- **TextCall** — *"tool 결과 이미지 없이 tool-call만으로 gain이 나는가"*를 분석하는데, **회전은 돌린 이미지를 다시 봐야 글자를 읽으므로 성립할 수 없다** → 역으로 *"우리 과제는 tool result가 필수인 케이스"*라는 근거로 인용 가능.
 
 ---
 
