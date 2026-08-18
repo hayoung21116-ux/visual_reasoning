@@ -65,6 +65,7 @@
 
 ### ✅ 적합 — 3B에서 바로 시도 가능
 
+- **Seeing Straight** ★ *(tool reasoning이 아니라 분류 파이프라인)* — 우리 스코프(문서 회전 → OCR)를 그대로 다룬 **가장 가까운 선행 연구**이고 **소형 모델 vision encoder + 분류 헤드만으로 98%**를 냈으므로, **가장 먼저 재현해 성능 상한을 잡아야 할 baseline**이다(§1·§4).
 - **Chain-of-Focus** — 고정 crop/zoom 구조라 출력이 단순하고, tool만 rotate로 바꾸면 그대로 최소 baseline이 된다.
 - **OpenThinkIMG** — 표준 tool interface와 RL 환경이 이미 갖춰져 있어 밑바닥부터 만들 필요가 없다.
 - **Beacon** ★ — "tool이 실제로 도움이 됐는가"를 학습 신호로 삼는데, rotated OCR에서는 **회전 전후 OCR 정확도 차이**로 그걸 teacher 없이 공짜로 잴 수 있다 → *"부를까 말까"*가 아니라 **"어느 각도가 맞았나"의 graded reward**로 전용 가능.
@@ -94,6 +95,7 @@
 ### 📊 방법론이 아니라 평가셋
 
 - **TIR-Bench** ★ — 13개 task 중 **Rotated OCR이 명시적으로 포함**되고 최고 성능이 46%라 포화되지 않아, **다운스트림 평가셋으로 바로 쓸 수 있다**.
+- **ORB** ★ *(Seeing Straight 부속)* — 1,863장의 rotated OCR 전용 평가셋이고 **ORB-Indic으로 11개 저자원 언어까지 커버**해, 우리 과제에 가장 정확히 맞는 평가셋이다.
 
 ### ❓ 확인 불가
 
