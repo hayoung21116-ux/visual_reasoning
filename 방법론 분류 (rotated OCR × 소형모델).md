@@ -57,7 +57,7 @@
 |---|---|---|
 | **출력 형태** | 고정 tool + 구조화된 인자 | **자유 코드 생성** |
 | **호출 길이** | 1~2턴 | 수십 턴 long-horizon |
-| **학습** | SFT cold start 필수 | RL-only 부트스트랩 |
+| **학습** | SFT cold start **또는** tool-supervised RL(§3-B ②) | 맨바닥 RL-only 부트스트랩 |
 
 ---
 
@@ -86,6 +86,49 @@
 
 - **FaithEyes** — "잘못된 tool output이 추론을 오염시킨다"는 **문제의식은 우리에게도 실재**하지만(앞단이 잘못 회전시키면 본 모델이 틀린 전제 위에서 추론), **judge를 쓰는 해법은 불필요**하다 — OCR 결과 자체가 검증 신호이므로.
 - **TextCall** — *"tool 결과 이미지 없이 tool-call만으로 gain이 나는가"*를 분석하는데, **회전은 돌린 이미지를 다시 봐야 글자를 읽으므로 성립할 수 없다** → 역으로 *"우리 과제는 tool result가 필수인 케이스"*라는 근거로 인용 가능.
+
+---
+
+## 3-B. 추가로 받은 목록 — 검증 결과
+
+**⚠️ 두 건이 표의 주장과 다릅니다.**
+
+| 논문 | 검증 | 실제 내용 |
+|---|---|---|
+| **TIR-Bench** (2511.01833) | ✅ **실재·매우 중요** | 13개 task 중 **"Rotated OCR"이 명시적으로 포함**. 22개 MLLM 평가에서 **최고 46%**. tool 있는 모델(o3·o4-mini·PyVision)이 크게 앞섬 |
+| **ToolsRL** (2604.19945, CVPR'26) | ✅ **실재·매우 중요** | *Visual Reasoning through Tool-supervised RL* (Amazon). tool에 **rotate·flip 명시 포함**. Qwen2.5-VL-7B |
+| **ReVPT** (2509.01656) | ✅ 실재 | *Reinforced Visual Perception with Tools*. GRPO + 4개 tool(detection·zoom·edge·depth). **"2B 스케일에서 특히 큰 향상"** |
+| **AgenticOCR** (2602.24134) | ⚠️ **rotation 타깃 아님** | *Parsing Only What You Need for **Efficient RAG***. tool이 **zoom-and-ocr**이고 목표는 **visual token 예산 절감**. 4B/8B·GRPO·OCR은 맞지만 **회전과 무관** |
+| **Rotation-R1** | ❌ **확인 불가** | 검색으로 존재를 확인하지 못했습니다. 정확한 제목·arXiv 번호를 알려주시면 다시 찾아보겠습니다 |
+
+### 이 셋에서 나온 핵심 소득 3가지 ★
+
+**① TIR-Bench — 우리 접근을 정면으로 뒷받침하는 발견**
+
+> *"이미지 방향을 먼저 복원하고 텍스트를 출력하는 **agentic 방식은, 회전된 데이터로 모델을 직접 fine-tuning할 때 생기는 catastrophic forgetting을 피한다**."*
+
+**지금까지 나온 것 중 "본 모델을 얼리고 앞단을 두는" 설계에 대한 가장 직접적인 실증 근거입니다.** 그동안 근거가 비용·적용가능성이었는데, 여기서 **성능상의 이유**가 생겼습니다 — 직접 학습시키면 다른 능력이 망가진다는 것.
+
+**② ToolsRL — SFT cold start를 우회할 수 있는 경로**
+
+2단계 curriculum으로 **tool 습득과 답 최적화를 분리**합니다.
+
+```
+Stage 1 : ground-truth 기반 per-tool reward로 tool 사용법만 학습
+Stage 2 : GRPO로 답 정확도 최적화 (학습된 tool을 자유 호출)
+```
+
+핵심은 **"비싼 curated tool-use trajectory가 필요 없다"**는 점입니다. **회전은 정답 각도를 우리가 직접 걸어서 만들기 때문에 per-tool reward가 공짜로 나옵니다.** → §2에서 "3B는 SFT cold start 필수"라고 했는데, **ToolsRL Stage 1이 더 싼 대안**이 될 수 있습니다.
+
+**③ ReVPT — 소형에서 tool-use RL이 된다는 증거**
+
+**"2B 스케일에서 특히 큰 향상"**을 보고합니다. CodeVision Fig 16의 붕괴와 상충하는 것처럼 보이지만 아닙니다 — **ReVPT는 고정 tool 4개**를 쓰고 CodeVision은 자유 코드 생성이었어요. **§2의 분류 기준(고정 tool은 3B 친화, 자유 코드는 위험)을 오히려 뒷받침합니다.**
+
+### 분류 갱신
+
+- ✅ **적합 추가:** **ToolsRL**(rotate가 tool에 이미 포함 + 2단계 curriculum), **ReVPT**(2B급에서 검증된 고정-tool RL)
+- 📊 **평가셋 추가:** **TIR-Bench**의 Rotated OCR task — 최고 46%라 포화되지 않았고, 우리 과제와 직결
+- ⚠️ **AgenticOCR:** 회전 목적으로는 부적합. 다만 **"4B가 GRPO로 OCR tool 호출을 학습한다"**는 실현 가능성 증거로는 유효
 
 ---
 
@@ -138,7 +181,9 @@ Seeing Straight이 **분류 헤드만으로 98%**를 냈으니, reasoning 모델
      ├ (a) 분류 헤드         ← Seeing Straight 재현. 성능 상한 확인용
      └ (b) 고정 tool + 추론   ← Chain-of-Focus / OpenThinkIMG 구조, rotate로 교체
 
-[2] SFT cold start           ← 3B에서는 선택이 아니라 필수 (CodeVision Fig 16)
+[2] tool 사용법 부트스트랩    ← 맨바닥 RL은 3B에서 붕괴 (CodeVision Fig 16)
+     ├ (a) SFT cold start
+     └ (b) ToolsRL Stage 1 — 정답 각도를 우리가 알고 있으므로 per-tool reward가 공짜
 
 [3] RL — reward에 OCR 결과를 직접 사용
      └ Beacon식 tool-induced gain = 회전 전후 OCR 정확도 차이
