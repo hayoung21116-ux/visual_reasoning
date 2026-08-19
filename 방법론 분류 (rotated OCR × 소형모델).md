@@ -206,7 +206,44 @@ global만 쓰면 무관한 step도 보상받고, answer만 쓰면 탐색이 죽�
 
 **③ ReVPT — 3B에서 tool-use RL이 된다는 직접 증거**
 
-**Qwen2.5-VL-3B**에서 CV-Bench +9.03%를 냅니다. CodeVision Fig 16의 붕괴와 상충하는 것처럼 보이지만 아닙니다 — **ReVPT는 고정 tool 4개**를 쓰고 CodeVision은 자유 코드 생성이었어요. **§2의 분류 기준(고정 tool은 3B 친화, 자유 코드는 위험)을 뒷받침합니다.** 상세는 §3 참조.
+**Qwen2.5-VL-3B**에서 CV-Bench +9.03%를 냅니다. CodeVision Fig 16의 붕괴와 상충하는 것처럼 보이지만 아닙니다 — **ReVPT는 고정 tool 4개**를 쓰고 CodeVision은 자유 코드 생성이었어요. **§2의 분류 기준(고정 tool은 3B 친화, 자유 코드는 위험)을 뒷받침합니다.** 학습 파이프라인은 아래에서 정리합니다.
+
+### ★ 3B급 두 선례의 학습 파이프라인
+
+우리가 실제로 따라 할 수 있는 유일한 소형 tool-RL 레시피 두 개입니다. **둘 다 "cold-start SFT → tool RL" 2단계로 동일**합니다.
+
+| | **OpenThinkIMG** (2505.08617) | **ReVPT** (2509.01656) |
+|---|---|---|
+| **베이스 모델** | Qwen2-VL-2B-Instruct | Qwen2.5-VL-**3B**-Instruct / 7B-Instruct |
+| **Stage 1 — cold start** | **Qwen2-VL-72B**로 tool 사용 궤적 합성 → 필터링 → SFT | **GPT-4.1**로 궤적 합성 → SFT |
+| **Stage 2 — RL** | **V-ToolRL** (GRPO). tool 호출 결과 **이미지를 궤적에 되먹여** 최종 답 정확도로 최적화 | **GRPO**. 고정 tool 4개 위에서 답 정확도로 최적화 |
+| **tool 구성** | POINT, DrawH/VLine, ZoomInSubplot, SegmentRegionAroundPoint (chart 특화). 각 tool을 **분산 서비스로 띄워 표준 interface로 통일** | object detection · zoom-in · edge detection · depth estimation (**4개로 의도적으로 축소**) |
+| **성적** | 29.56 → SFT 45.67 → **59.39** (chart reasoning) | CV-Bench **3B +9.03%**, 7B +9.44% |
+
+**① OpenThinkIMG의 핵심 아이디어 — "V", 즉 tool 출력 이미지를 다시 넣는 것**
+
+같은 RL을 tool 출력을 **텍스트로만** 받아 돌리면 51.63, **이미지로 되먹이면** 59.39입니다. **차이 +7.76이 이 논문의 실질**이에요. 회전은 돌린 결과를 눈으로 확인해야 하는 과제라 **이 성분은 우리에게 필수**입니다.
+
+**② ReVPT의 핵심 아이디어 — tool을 늘리지 않는 것**
+
+저자들은 초기에 보조선·하이라이팅·**rotation**까지 넣었다가 활용률이 극히 낮아 **4개로 잘라냈습니다**. 이유는 *"소형 모델은 제한된 world knowledge 때문에 여러 tool을 동시에 학습하기 어렵다"*. 3B에서 성공한 유일한 사례가 **tool을 최소화한 사례**라는 점을 그대로 받아들여야 합니다.
+
+**③ 왜 둘 다 cold start를 넣었나 — 같은 이유입니다**
+
+ReVPT는 R1-Zero 방식을 먼저 시도했다가 **tool 사용 성향이 점진적으로 소멸**하는 걸 관찰하고 SFT를 도입했습니다. 저자 설명은 *"처리된 이미지로 추론하는 것이 모델의 초기 학습 데이터로부터의 distribution shift"*. **§2의 CodeVision(7B) 붕괴와 같은 현상이 3B에서 재현된 것**이고, 두 논문이 독립적으로 cold start를 필수로 결론지었습니다.
+
+**④ 파라미터 학습 범위 — OpenThinkIMG는 vision encoder까지 전부 엽니다** *(저장소 확인)*
+
+공개 저장소(`OpenThinkIMG/OpenThinkIMG`)의 학습 코드에는 `freeze`·`requires_grad`·`vision_tower` 관련 로직이 **하나도 없고**, 파라미터 선택을 TRL의 `get_peft_config(model_args)`에 위임합니다. README의 공식 실행 커맨드에도 `--use_peft`나 LoRA 인자가 없고 **DeepSpeed ZeRO-3 full-parameter** 세팅입니다(SFT `lr 2e-5`, RL `lr 1e-6`).
+→ **ViT + merger + LLM 전체를 푸는 full fine-tuning**입니다. 소형 tool-RL에서 "encoder는 얼리고 LLM만 튜닝"하는 절약형 레시피의 검증된 선례는 없다는 뜻입니다.
+
+> ⚠️ **재현 주의 2가지.** ⓐ 논문이 표기한 경로 `src/open_r1/*.py`는 저장소에 없고 실제 코드는 `r1_v/open_r1/`에 있습니다. ⓑ `sft.py`는 `Qwen2VLForConditionalGeneration` 로드 줄이 주석 처리되고 **`Qwen2_5_VLForConditionalGeneration`이 활성화**돼 있어, 본문의 Qwen2-VL-2B backbone과 공개 코드가 어긋납니다.
+
+**⑤ 우리 과제와의 결정적 차이 — 둘 다 tool 호출을 *줄이는* 방향입니다**
+
+OpenThinkIMG는 학습이 진행되며 tool 호출 비율이 **0.63 → 0.10~0.12로 급감**하고, ReVPT는 활용률 낮은 tool을 제거했습니다. 두 과제 모두 tool이 "가끔만 필요한" 성격이었기 때문입니다. **rotated OCR은 반대로 거의 항상 tool이 필요**하므로, 이 레시피를 그대로 쓰면 reward가 tool 사용을 억누르는 쪽으로 작동합니다 — reward 설계에서 반드시 통제해야 할 지점입니다.
+
+---
 
 *(분류 결과는 §3 참조.)*
 
